@@ -61,19 +61,26 @@ func (lh *logHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	rr := &responseRecorder{w: w}
 	log := lh.log.WithFields(logrus.Fields{
-		"http.req.path":   r.URL.Path,
-		"http.req.method": r.Method,
-		"http.req.id":     requestID.String(),
+		"http_req_path":   r.URL.Path,
+		"http_req_method": r.Method,
+		"http_req_id":     requestID.String(),
 	})
 	if v, ok := r.Context().Value(ctxKeySessionID{}).(string); ok {
 		log = log.WithField("session", v)
 	}
-	log.Debug("request started")
+
+	log.Debugf("request %s %s started. requestID: %s", r.Method, r.URL.Path, requestID.String())
 	defer func() {
-		log.WithFields(logrus.Fields{
-			"http.resp.took_ms": int64(time.Since(start) / time.Millisecond),
-			"http.resp.status":  rr.status,
-			"http.resp.bytes":   rr.b}).Debugf("request complete")
+		log = log.WithFields(logrus.Fields{
+			"http_resp_took_ms": int64(time.Since(start) / time.Millisecond),
+			"http_resp_status":  rr.status,
+			"http_resp_bytes":   rr.b})
+
+		if (rr.status < 400) {
+			log.Debugf("request %s %s completed with status: %d. requestID: %s", r.Method, r.URL.Path, rr.status, requestID.String())
+		} else {
+			log.Errorf("request %s %s failed with status: %d. requestID: %s", r.Method, r.URL.Path, rr.status, requestID.String())
+		}
 	}()
 
 	ctx = context.WithValue(ctx, ctxKeyLog{}, log)

@@ -125,6 +125,12 @@ function convert (call, callback) {
     _getCurrencyData((data) => {
       const request = call.request;
 
+      var e = Math.floor(Math.random() * (1000 - 1) + 1);
+
+      if (e % 2 ==0) {
+        var e2 = e / 0;
+      }
+
       // Convert: from_currency --> EUR
       const from = request.from;
       const euros = _carry({
@@ -144,7 +150,7 @@ function convert (call, callback) {
       result.nanos = Math.floor(result.nanos);
       result.currency_code = request.to_code;
 
-      logger.info(`conversion request successful`);
+      logger.info(`conversion request successful: ${result}`);
       callback(null, result);
     });
   } catch (err) {

@@ -43,6 +43,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"math/rand"
+	wr "github.com/mroth/weightedrand"
 )
 
 var (
@@ -54,6 +57,8 @@ var (
 	port = "3550"
 
 	reloadCatalog bool
+
+	chooser 	  *wr.Chooser
 )
 
 func init() {
@@ -67,11 +72,24 @@ func init() {
 		TimestampFormat: time.RFC3339Nano,
 	}
 	log.Out = os.Stdout
+	log.SetReportCaller(true)
+
 	catalogMutex = &sync.Mutex{}
 	err := readCatalogFile(&cat)
 	if err != nil {
 		log.Warnf("could not parse product catalog")
 	}
+
+	rand.Seed(time.Now().UTC().UnixNano())
+
+	chooser, _ = wr.NewChooser(
+        wr.Choice{Item: 0, Weight: 30},
+		wr.Choice{Item: 100, Weight: 6},
+        wr.Choice{Item: 200, Weight: 4},
+        wr.Choice{Item: 300, Weight: 1},
+        wr.Choice{Item: 400, Weight: 1},
+        wr.Choice{Item: 600, Weight: 1},
+    )
 }
 
 func main() {
@@ -258,6 +276,14 @@ func parseCatalog() []*pb.Product {
 	return cat.Products
 }
 
+func handleLatency() {
+	time.Sleep(extraLatency)
+
+	more := chooser.Pick().(int) + rand.Intn(99)
+	
+	time.Sleep(time.Duration(more))
+}
+
 func (p *productCatalog) Check(ctx context.Context, req *healthpb.HealthCheckRequest) (*healthpb.HealthCheckResponse, error) {
 	return &healthpb.HealthCheckResponse{Status: healthpb.HealthCheckResponse_SERVING}, nil
 }
@@ -272,7 +298,7 @@ func (p *productCatalog) ListProducts(context.Context, *pb.Empty) (*pb.ListProdu
 }
 
 func (p *productCatalog) GetProduct(ctx context.Context, req *pb.GetProductRequest) (*pb.Product, error) {
-	time.Sleep(extraLatency)
+	handleLatency()
 	var found *pb.Product
 	for i := 0; i < len(parseCatalog()); i++ {
 		if req.Id == parseCatalog()[i].Id {
@@ -297,3 +323,4 @@ func (p *productCatalog) SearchProducts(ctx context.Context, req *pb.SearchProdu
 	}
 	return &pb.SearchProductsResponse{Results: ps}, nil
 }
+

@@ -30,6 +30,9 @@ func CreateTrackingId(salt string) string {
 		seeded = true
 	}
 
+	log.Debugf("[CreateTrackingId] creating trackindId with salt: %s", salt)
+	defer log.Debugf("[CreateTrackingId] creating trackindId with salt: %s", salt)
+
 	return fmt.Sprintf("%c%c-%d%s-%d%s",
 		getRandomLetterCode(),
 		getRandomLetterCode(),

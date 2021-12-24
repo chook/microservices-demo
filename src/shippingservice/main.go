@@ -55,6 +55,7 @@ func init() {
 		TimestampFormat: time.RFC3339Nano,
 	}
 	log.Out = os.Stdout
+	log.SetReportCaller(true)
 }
 
 func main() {
@@ -117,8 +118,8 @@ func (s *server) Watch(req *healthpb.HealthCheckRequest, ws healthpb.Health_Watc
 
 // GetQuote produces a shipping quote (cost) in USD.
 func (s *server) GetQuote(ctx context.Context, in *pb.GetQuoteRequest) (*pb.GetQuoteResponse, error) {
-	log.Info("[GetQuote] received request")
-	defer log.Info("[GetQuote] completed request")
+	log.Infof("[GetQuote] received request: %v for ctx: %v", in, ctx)
+	defer log.Infof("[GetQuote] received request: %v for ctx: %v", in, ctx)
 
 	// 1. Our quote system requires the total number of items to be shipped.
 	count := 0
@@ -126,8 +127,14 @@ func (s *server) GetQuote(ctx context.Context, in *pb.GetQuoteRequest) (*pb.GetQ
 		count += int(item.Quantity)
 	}
 
+	log.Debugf("[GetQuote] counted %d items", count)
+	defer log.Debugf("[GetQuote] counted %d items", count)
+
 	// 2. Generate a quote based on the total number of items to be shipped.
 	quote := CreateQuoteFromCount(count)
+
+	log.Infof("[GetQuote] new quote created: %v", quote)
+	defer log.Debugf("[GetQuote] new quote created: %v", quote)
 
 	// 3. Generate a response.
 	return &pb.GetQuoteResponse{
@@ -136,17 +143,20 @@ func (s *server) GetQuote(ctx context.Context, in *pb.GetQuoteRequest) (*pb.GetQ
 			Units:        int64(quote.Dollars),
 			Nanos:        int32(quote.Cents * 10000000)},
 	}, nil
-
 }
 
 // ShipOrder mocks that the requested items will be shipped.
 // It supplies a tracking ID for notional lookup of shipment delivery status.
 func (s *server) ShipOrder(ctx context.Context, in *pb.ShipOrderRequest) (*pb.ShipOrderResponse, error) {
-	log.Info("[ShipOrder] received request")
-	defer log.Info("[ShipOrder] completed request")
+	log.Infof("[ShipOrder] received request: %v for ctx: %v", in, ctx)
+	defer log.Infof("[ShipOrder] received request: %v for ctx: %v", in, ctx)
+
 	// 1. Create a Tracking ID
 	baseAddress := fmt.Sprintf("%s, %s, %s", in.Address.StreetAddress, in.Address.City, in.Address.State)
 	id := CreateTrackingId(baseAddress)
+
+	log.Infof("[ShipOrder] generated tracking id: %s for address: %s", id, baseAddress)
+	defer log.Infof("[ShipOrder] generated tracking id: %s for address: %s", id, baseAddress)
 
 	// 2. Generate a response.
 	return &pb.ShipOrderResponse{

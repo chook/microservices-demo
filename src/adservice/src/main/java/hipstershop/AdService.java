@@ -95,7 +95,6 @@ public final class AdService {
   }
 
   private static class AdServiceImpl extends hipstershop.AdServiceGrpc.AdServiceImplBase {
-
     /**
      * Retrieves ads based on context provided in the request {@code AdRequest}.
      *
@@ -111,6 +110,7 @@ public final class AdService {
         span.putAttribute("method", AttributeValue.stringAttributeValue("getAds"));
         List<Ad> allAds = new ArrayList<>();
         logger.info("received ad request (context_words=" + req.getContextKeysList() + ")");
+
         if (req.getContextKeysCount() > 0) {
           span.addAnnotation(
               "Constructing Ads using context",
@@ -125,18 +125,28 @@ public final class AdService {
           }
         } else {
           span.addAnnotation("No Context provided. Constructing random Ads.");
+          logger.info("No Context provided. Constructing random Ads.");
           allAds = service.getRandomAds();
         }
-        if (allAds.isEmpty()) {
+
+        if (allAds.isEmpty() || new Random().nextInt() % 500 == 0) {
           // Serve random ads.
           span.addAnnotation("No Ads found based on context. Constructing random Ads.");
+          logger.warn("No Ads found based on context. Constructing random Ads.");
           allAds = service.getRandomAds();
         }
+        
+        logger.debug("returning {} ads", allAds.size());
+
+        if ((System.currentTimeMillis() % 1000 == 0) && (new Random().nextInt() % 10 == 0)) {
+          throw new StatusRuntimeException();
+        }
+
         AdResponse reply = AdResponse.newBuilder().addAllAds(allAds).build();
         responseObserver.onNext(reply);
         responseObserver.onCompleted();
       } catch (StatusRuntimeException e) {
-        logger.log(Level.WARN, "GetAds Failed with status {}", e.getStatus());
+        logger.error("GetAds Failed with status " + e.getStatus(), e);
         responseObserver.onError(e);
       }
     }
@@ -206,12 +216,18 @@ public final class AdService {
             .setRedirectUrl("/product/L9ECAV7KIM")
             .setText("Terrarium for sale. Buy one, get second one for free")
             .build();
+    Ad badLink =
+        Ad.newBuilder()
+            .setRedirectUrl("/product/OLJCESPRRR")
+            .setText("The new pirate RRR product. 10% off")
+            .build();
     return ImmutableListMultimap.<String, Ad>builder()
         .putAll("photography", camera, lens)
         .putAll("vintage", camera, lens, recordPlayer)
         .put("cycling", bike)
         .put("cookware", baristaKit)
         .putAll("gardening", airPlant, terrarium)
+        .put("bad", badLink)
         .build();
   }
 
@@ -291,9 +307,6 @@ public final class AdService {
     }
     logger.info("Tracing enabled - Stackdriver exporter initialized.");
   }
-
-
-
 
   private static void initJaeger() {
     String jaegerAddr = System.getenv("JAEGER_SERVICE_ADDR");
