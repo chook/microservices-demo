@@ -30,7 +30,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
-	pb "github.com/GoogleCloudPlatform/microservices-demo/src/frontend/genproto"
+	pb "github.com/GoogleCloudPlatform/microservices-demo/src/frontend/genproto/hipstershop"
 	"github.com/GoogleCloudPlatform/microservices-demo/src/frontend/money"
 )
 
@@ -40,7 +40,8 @@ type platformDetails struct {
 }
 
 var (
-	templates = template.Must(template.New("").
+	isCymbalBrand = strings.ToLower(os.Getenv("CYMBAL_BRANDING")) == "true"
+	templates     = template.Must(template.New("").
 			Funcs(template.FuncMap{
 			"renderMoney":        renderMoney,
 			"renderCurrencyLogo": renderCurrencyLogo,
@@ -52,9 +53,7 @@ var validEnvs = []string{"local", "gcp", "azure", "aws", "onprem", "alibaba"}
 
 func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
-	currency := currentCurrency(r)
-
-	log.Infof("loading home page with %v as currency", currency)
+	log.WithField("currency", currentCurrency(r)).Info("home")
 	currencies, err := fe.getCurrencies(r.Context())
 	if err != nil {
 		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve currencies"), http.StatusInternalServerError)
@@ -88,7 +87,7 @@ func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 	// Set ENV_PLATFORM (default to local if not set; use env var if set; otherwise detect GCP, which overrides env)_
 	var env = os.Getenv("ENV_PLATFORM")
 	// Only override from env variable if set + valid env
-	if env == "" || stringinSlice(validEnvs, env) == false {
+	if env == "" || stringinSlice(validEnvs, env) {
 		fmt.Println("env platform is either empty or invalid")
 		env = "local"
 	}
@@ -104,17 +103,19 @@ func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 	plat.setPlatformDetails(strings.ToLower(env))
 
 	if err := templates.ExecuteTemplate(w, "home", map[string]interface{}{
-		"session_id":    sessionID(r),
-		"request_id":    r.Context().Value(ctxKeyRequestID{}),
-		"user_currency": currentCurrency(r),
-		"show_currency": true,
-		"currencies":    currencies,
-		"products":      ps,
-		"cart_size":     cartSize(cart),
-		"banner_color":  os.Getenv("BANNER_COLOR"), // illustrates canary deployments
-		"ad":            fe.chooseAd(r.Context(), []string{}, log),
-		"platform_css":  plat.css,
-		"platform_name": plat.provider,
+		"session_id":        sessionID(r),
+		"request_id":        r.Context().Value(ctxKeyRequestID{}),
+		"user_currency":     currentCurrency(r),
+		"show_currency":     true,
+		"currencies":        currencies,
+		"products":          ps,
+		"cart_size":         cartSize(cart),
+		"banner_color":      os.Getenv("BANNER_COLOR"), // illustrates canary deployments
+		"ad":                fe.chooseAd(r.Context(), []string{}, log),
+		"platform_css":      plat.css,
+		"platform_name":     plat.provider,
+		"is_cymbal_brand":   isCymbalBrand,
+		"deploymentDetails": deploymentDetailsMap,
 	}); err != nil {
 		log.Error(err)
 	}
@@ -149,8 +150,8 @@ func (fe *frontendServer) productHandler(w http.ResponseWriter, r *http.Request)
 		renderHTTPError(log, r, w, errors.New("product id not specified"), http.StatusBadRequest)
 		return
 	}
-	currency := currentCurrency(r)
-	log.Debugf("serving product page %s with %v", id, currency)
+	log.WithField("id", id).WithField("currency", currentCurrency(r)).
+		Debug("serving product page")
 
 	p, err := fe.getProduct(r.Context(), id)
 	if err != nil {
@@ -187,17 +188,19 @@ func (fe *frontendServer) productHandler(w http.ResponseWriter, r *http.Request)
 	}{p, price}
 
 	if err := templates.ExecuteTemplate(w, "product", map[string]interface{}{
-		"session_id":      sessionID(r),
-		"request_id":      r.Context().Value(ctxKeyRequestID{}),
-		"ad":              fe.chooseAd(r.Context(), p.Categories, log),
-		"user_currency":   currentCurrency(r),
-		"show_currency":   true,
-		"currencies":      currencies,
-		"product":         product,
-		"recommendations": recommendations,
-		"cart_size":       cartSize(cart),
-		"platform_css":    plat.css,
-		"platform_name":   plat.provider,
+		"session_id":        sessionID(r),
+		"request_id":        r.Context().Value(ctxKeyRequestID{}),
+		"ad":                fe.chooseAd(r.Context(), p.Categories, log),
+		"user_currency":     currentCurrency(r),
+		"show_currency":     true,
+		"currencies":        currencies,
+		"product":           product,
+		"recommendations":   recommendations,
+		"cart_size":         cartSize(cart),
+		"platform_css":      plat.css,
+		"platform_name":     plat.provider,
+		"is_cymbal_brand":   isCymbalBrand,
+		"deploymentDetails": deploymentDetailsMap,
 	}); err != nil {
 		log.Println(err)
 	}
@@ -211,7 +214,7 @@ func (fe *frontendServer) addToCartHandler(w http.ResponseWriter, r *http.Reques
 		renderHTTPError(log, r, w, errors.New("invalid form input"), http.StatusBadRequest)
 		return
 	}
-	log.Debugf("adding to cart product %v with %d items", productID, quantity)
+	log.WithField("product", productID).WithField("quantity", quantity).Debug("adding to cart")
 
 	p, err := fe.getProduct(r.Context(), productID)
 	if err != nil {
@@ -241,7 +244,7 @@ func (fe *frontendServer) emptyCartHandler(w http.ResponseWriter, r *http.Reques
 
 func (fe *frontendServer) viewCartHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
-	log.Debug("about to render user cart")
+	log.Debug("view user cart")
 	currencies, err := fe.getCurrencies(r.Context())
 	if err != nil {
 		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve currencies"), http.StatusInternalServerError)
@@ -271,7 +274,7 @@ func (fe *frontendServer) viewCartHandler(w http.ResponseWriter, r *http.Request
 		Price    *pb.Money
 	}
 	items := make([]cartItemView, len(cart))
-	totalPrice := pb.Money{CurrencyCode: currentCurrency(r)}
+	totalPrice := &pb.Money{CurrencyCode: currentCurrency(r)}
 	for i, item := range cart {
 		p, err := fe.getProduct(r.Context(), item.GetProductId())
 		if err != nil {
@@ -284,44 +287,40 @@ func (fe *frontendServer) viewCartHandler(w http.ResponseWriter, r *http.Request
 			return
 		}
 
-		multPrice := money.MultiplySlow(*price, uint32(item.GetQuantity()))
+		multPrice := money.MultiplySlow(price, uint32(item.GetQuantity()))
 		items[i] = cartItemView{
 			Item:     p,
 			Quantity: item.GetQuantity(),
-			Price:    &multPrice}
+			Price:    multPrice}
 		totalPrice = money.Must(money.Sum(totalPrice, multPrice))
 	}
-	totalPrice = money.Must(money.Sum(totalPrice, *shippingCost))
-
+	totalPrice = money.Must(money.Sum(totalPrice, shippingCost))
 	year := time.Now().Year()
 
-	rid := r.Context().Value(ctxKeyRequestID{})
-
-	log.Debugf("viewing user cart with %d items, total_cost: %v, session_id: %v, request_id: %v, ", cartSize(cart), totalPrice, sessionID(r), rid)
-
 	if err := templates.ExecuteTemplate(w, "cart", map[string]interface{}{
-		"session_id":       sessionID(r),
-		"request_id":       r.Context().Value(ctxKeyRequestID{}),
-		"user_currency":    currentCurrency(r),
-		"currencies":       currencies,
-		"recommendations":  recommendations,
-		"cart_size":        cartSize(cart),
-		"shipping_cost":    shippingCost,
-		"show_currency":    true,
-		"total_cost":       totalPrice,
-		"items":            items,
-		"expiration_years": []int{year, year + 1, year + 2, year + 3, year + 4},
-		"platform_css":     plat.css,
-		"platform_name":    plat.provider,
+		"session_id":        sessionID(r),
+		"request_id":        r.Context().Value(ctxKeyRequestID{}),
+		"user_currency":     currentCurrency(r),
+		"currencies":        currencies,
+		"recommendations":   recommendations,
+		"cart_size":         cartSize(cart),
+		"shipping_cost":     shippingCost,
+		"show_currency":     true,
+		"total_cost":        totalPrice,
+		"items":             items,
+		"expiration_years":  []int{year, year + 1, year + 2, year + 3, year + 4},
+		"platform_css":      plat.css,
+		"platform_name":     plat.provider,
+		"is_cymbal_brand":   isCymbalBrand,
+		"deploymentDetails": deploymentDetailsMap,
 	}); err != nil {
 		log.Println(err)
 	}
-
 }
 
 func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
-	log.Debug("about to place order")
+	log.Debug("placing order")
 
 	var (
 		email         = r.FormValue("email")
@@ -357,14 +356,14 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
 		renderHTTPError(log, r, w, errors.Wrap(err, "failed to complete the order"), http.StatusInternalServerError)
 		return
 	}
-	log.Infof("order %v placed", order.GetOrder().GetOrderId())
+	log.WithField("order", order.GetOrder().GetOrderId()).Info("order placed")
 
 	order.GetOrder().GetItems()
 	recommendations, _ := fe.getRecommendations(r.Context(), sessionID(r), nil)
 
-	totalPaid := *order.GetOrder().GetShippingCost()
+	totalPaid := order.GetOrder().GetShippingCost()
 	for _, v := range order.GetOrder().GetItems() {
-		multPrice := money.MultiplySlow(*v.GetCost(), uint32(v.GetItem().GetQuantity()))
+		multPrice := money.MultiplySlow(v.GetCost(), uint32(v.GetItem().GetQuantity()))
 		totalPaid = money.Must(money.Sum(totalPaid, multPrice))
 	}
 
@@ -374,19 +373,19 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	log.Debugf("order finalized! total_paid: %v, session_id: %v, request_id: %v", &totalPaid, sessionID(r), r.Context().Value(ctxKeyRequestID{}))
-
 	if err := templates.ExecuteTemplate(w, "order", map[string]interface{}{
-		"session_id":      sessionID(r),
-		"request_id":      r.Context().Value(ctxKeyRequestID{}),
-		"user_currency":   currentCurrency(r),
-		"show_currency":   false,
-		"currencies":      currencies,
-		"order":           order.GetOrder(),
-		"total_paid":      &totalPaid,
-		"recommendations": recommendations,
-		"platform_css":    plat.css,
-		"platform_name":   plat.provider,
+		"session_id":        sessionID(r),
+		"request_id":        r.Context().Value(ctxKeyRequestID{}),
+		"user_currency":     currentCurrency(r),
+		"show_currency":     false,
+		"currencies":        currencies,
+		"order":             order.GetOrder(),
+		"total_paid":        &totalPaid,
+		"recommendations":   recommendations,
+		"platform_css":      plat.css,
+		"platform_name":     plat.provider,
+		"is_cymbal_brand":   isCymbalBrand,
+		"deploymentDetails": deploymentDetailsMap,
 	}); err != nil {
 		log.Println(err)
 	}
@@ -407,7 +406,8 @@ func (fe *frontendServer) logoutHandler(w http.ResponseWriter, r *http.Request) 
 func (fe *frontendServer) setCurrencyHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
 	cur := r.FormValue("currency_code")
-	log.Debugf("changing currency from %v to %v", currentCurrency(r), cur)
+	log.WithField("curr.new", cur).WithField("curr.old", currentCurrency(r)).
+		Debug("setting currency")
 
 	if cur != "" {
 		http.SetCookie(w, &http.Cookie{
@@ -436,19 +436,18 @@ func (fe *frontendServer) chooseAd(ctx context.Context, ctxKeys []string, log lo
 }
 
 func renderHTTPError(log logrus.FieldLogger, r *http.Request, w http.ResponseWriter, err error, code int) {
+	log.WithField("error", err).Error("request error")
 	errMsg := fmt.Sprintf("%+v", err)
-	rid := r.Context().Value(ctxKeyRequestID{})
-	sid := sessionID(r)
-
-	log.WithField("error", err).Errorf("http request error! request_id: %v, session_id: %v, status: %d, err: %v", rid, sid, code, err)
 
 	w.WriteHeader(code)
+
 	if templateErr := templates.ExecuteTemplate(w, "error", map[string]interface{}{
-		"session_id":  sid,
-		"request_id":  rid,
-		"error":       errMsg,
-		"status_code": code,
-		"status":      http.StatusText(code),
+		"session_id":        sessionID(r),
+		"request_id":        r.Context().Value(ctxKeyRequestID{}),
+		"error":             errMsg,
+		"status_code":       code,
+		"status":            http.StatusText(code),
+		"deploymentDetails": deploymentDetailsMap,
 	}); templateErr != nil {
 		log.Println(templateErr)
 	}
@@ -487,8 +486,9 @@ func cartSize(c []*pb.CartItem) int {
 	return cartSize
 }
 
-func renderMoney(money pb.Money) string {
-	return fmt.Sprintf("%s %d.%02d", money.GetCurrencyCode(), money.GetUnits(), money.GetNanos()/10000000)
+func renderMoney(money *pb.Money) string {
+	currencyLogo := renderCurrencyLogo(money.GetCurrencyCode())
+	return fmt.Sprintf("%s%d.%02d", currencyLogo, money.GetUnits(), money.GetNanos()/10000000)
 }
 
 func renderCurrencyLogo(currencyCode string) string {
