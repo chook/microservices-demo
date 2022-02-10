@@ -111,7 +111,7 @@ public final class AdService {
         logger.debug("returning {} ads", allAds.size());
 
         if ((System.currentTimeMillis() % 1000 == 0) && (new Random().nextInt() % 10 == 0)) {
-          throw new StatusRuntimeException();
+          throw new StatusRuntimeException(Status.INTERNAL);
         }
 
         AdResponse reply = AdResponse.newBuilder().addAllAds(allAds).build();
