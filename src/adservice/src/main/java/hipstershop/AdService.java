@@ -101,16 +101,24 @@ public final class AdService {
           }
         } else {
           allAds = service.getRandomAds();
+          logger.info("No Context provided. Constructing random Ads.");
         }
         if (allAds.isEmpty()) {
           // Serve random ads.
           allAds = service.getRandomAds();
         }
+
+        logger.debug("returning {} ads", allAds.size());
+
+        if ((System.currentTimeMillis() % 1000 == 0) && (new Random().nextInt() % 10 == 0)) {
+          throw new StatusRuntimeException();
+        }
+
         AdResponse reply = AdResponse.newBuilder().addAllAds(allAds).build();
         responseObserver.onNext(reply);
         responseObserver.onCompleted();
       } catch (StatusRuntimeException e) {
-        logger.log(Level.WARN, "GetAds Failed with status {}", e.getStatus());
+        logger.error("GetAds Failed with status " + e.getStatus(), e);
         responseObserver.onError(e);
       }
     }
@@ -180,6 +188,11 @@ public final class AdService {
             .setRedirectUrl("/product/L9ECAV7KIM")
             .setText("Loafers for sale. Buy one, get second one for free")
             .build();
+    Ad badLink =
+        Ad.newBuilder()
+            .setRedirectUrl("/product/OLJCESPRRR")
+            .setText("The new pirate RRR product. 10% off")
+            .build();
     return ImmutableListMultimap.<String, Ad>builder()
         .putAll("clothing", tankTop)
         .putAll("accessories", watch)
@@ -187,6 +200,7 @@ public final class AdService {
         .putAll("hair", hairdryer)
         .putAll("decor", candleHolder)
         .putAll("kitchen", bambooGlassJar, mug)
+        .put("bad", badLink)
         .build();
   }
 

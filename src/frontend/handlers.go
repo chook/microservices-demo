@@ -53,7 +53,10 @@ var validEnvs = []string{"local", "gcp", "azure", "aws", "onprem", "alibaba"}
 
 func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
-	log.WithField("currency", currentCurrency(r)).Info("home")
+	currency := currentCurrency(r)
+
+	log.Infof("loading home page with %v as currency", currency)
+
 	currencies, err := fe.getCurrencies(r.Context())
 	if err != nil {
 		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve currencies"), http.StatusInternalServerError)
@@ -150,8 +153,8 @@ func (fe *frontendServer) productHandler(w http.ResponseWriter, r *http.Request)
 		renderHTTPError(log, r, w, errors.New("product id not specified"), http.StatusBadRequest)
 		return
 	}
-	log.WithField("id", id).WithField("currency", currentCurrency(r)).
-		Debug("serving product page")
+	currency := currentCurrency(r)
+	log.Debugf("serving product page %s with %v", id, currency)
 
 	p, err := fe.getProduct(r.Context(), id)
 	if err != nil {
@@ -214,7 +217,7 @@ func (fe *frontendServer) addToCartHandler(w http.ResponseWriter, r *http.Reques
 		renderHTTPError(log, r, w, errors.New("invalid form input"), http.StatusBadRequest)
 		return
 	}
-	log.WithField("product", productID).WithField("quantity", quantity).Debug("adding to cart")
+	log.Debugf("adding to cart product %v with %d items", productID, quantity)
 
 	p, err := fe.getProduct(r.Context(), productID)
 	if err != nil {
@@ -244,7 +247,8 @@ func (fe *frontendServer) emptyCartHandler(w http.ResponseWriter, r *http.Reques
 
 func (fe *frontendServer) viewCartHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
-	log.Debug("view user cart")
+	log.Debug("about to render user cart")
+
 	currencies, err := fe.getCurrencies(r.Context())
 	if err != nil {
 		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve currencies"), http.StatusInternalServerError)
@@ -297,6 +301,10 @@ func (fe *frontendServer) viewCartHandler(w http.ResponseWriter, r *http.Request
 	totalPrice = money.Must(money.Sum(totalPrice, shippingCost))
 	year := time.Now().Year()
 
+	rid := r.Context().Value(ctxKeyRequestID{})
+
+	log.Debugf("viewing user cart with %d items, total_cost: %v, session_id: %v, request_id: %v, ", cartSize(cart), totalPrice, sessionID(r), rid)
+
 	if err := templates.ExecuteTemplate(w, "cart", map[string]interface{}{
 		"session_id":        sessionID(r),
 		"request_id":        r.Context().Value(ctxKeyRequestID{}),
@@ -320,7 +328,7 @@ func (fe *frontendServer) viewCartHandler(w http.ResponseWriter, r *http.Request
 
 func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
-	log.Debug("placing order")
+	log.Debug("about to place order")
 
 	var (
 		email         = r.FormValue("email")
@@ -356,7 +364,7 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
 		renderHTTPError(log, r, w, errors.Wrap(err, "failed to complete the order"), http.StatusInternalServerError)
 		return
 	}
-	log.WithField("order", order.GetOrder().GetOrderId()).Info("order placed")
+	log.Infof("order %v placed", order.GetOrder().GetOrderId())
 
 	order.GetOrder().GetItems()
 	recommendations, _ := fe.getRecommendations(r.Context(), sessionID(r), nil)
@@ -372,6 +380,8 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
 		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve currencies"), http.StatusInternalServerError)
 		return
 	}
+
+	log.Debugf("order finalized! total_paid: %v, session_id: %v, request_id: %v", &totalPaid, sessionID(r), r.Context().Value(ctxKeyRequestID{}))
 
 	if err := templates.ExecuteTemplate(w, "order", map[string]interface{}{
 		"session_id":        sessionID(r),
@@ -406,8 +416,7 @@ func (fe *frontendServer) logoutHandler(w http.ResponseWriter, r *http.Request) 
 func (fe *frontendServer) setCurrencyHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
 	cur := r.FormValue("currency_code")
-	log.WithField("curr.new", cur).WithField("curr.old", currentCurrency(r)).
-		Debug("setting currency")
+	log.Debugf("changing currency from %v to %v", currentCurrency(r), cur)
 
 	if cur != "" {
 		http.SetCookie(w, &http.Cookie{
@@ -436,8 +445,12 @@ func (fe *frontendServer) chooseAd(ctx context.Context, ctxKeys []string, log lo
 }
 
 func renderHTTPError(log logrus.FieldLogger, r *http.Request, w http.ResponseWriter, err error, code int) {
-	log.WithField("error", err).Error("request error")
+	rid := r.Context().Value(ctxKeyRequestID{})
+	sid := sessionID(r)
+
 	errMsg := fmt.Sprintf("%+v", err)
+
+	log.WithField("error", err).Errorf("http request error! request_id: %v, session_id: %v, status: %d, err: %v", rid, sid, code, err)
 
 	w.WriteHeader(code)
 

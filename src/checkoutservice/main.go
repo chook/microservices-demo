@@ -142,17 +142,23 @@ func (cs *checkoutService) Watch(req *healthpb.HealthCheckRequest, ws healthpb.H
 }
 
 func (cs *checkoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb.PlaceOrderResponse, error) {
-	log.Infof("[PlaceOrder] user_id=%q user_currency=%q", req.UserId, req.UserCurrency)
+	log.Infof("[PlaceOrder] user_id=%s user_currency=%s", req.UserId, req.UserCurrency)
 
 	orderID, err := uuid.NewUUID()
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to generate order uuid")
 	}
+	
+	log.Debugf("[PlaceOrder] generated new orderID: %s", orderID)
 
 	prep, err := cs.prepareOrderItemsAndShippingQuoteFromCart(ctx, req.UserId, req.UserCurrency, req.Address)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
+
+	log.Debugf("[PlaceOrder] prepare everything for req: %v. prep: %v", req, prep)
+
+	log.Debug("[PlaceOrder] calculating money")
 
 	total := &pb.Money{CurrencyCode: req.UserCurrency,
 		Units: 0,
@@ -167,14 +173,18 @@ func (cs *checkoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderReq
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to charge card: %+v", err)
 	}
-	log.Infof("payment went through (transaction_id: %s)", txID)
+	log.Infof("[PlaceOrder] payment went through for the amount of %v (transaction_id: %s)", total, txID)
 
 	shippingTrackingID, err := cs.shipOrder(ctx, req.Address, prep.cartItems)
 	if err != nil {
 		return nil, status.Errorf(codes.Unavailable, "shipping error: %+v", err)
 	}
+	
+	log.Infof("[PlaceOrder] new trackingID: %v shipping to %v for generated items %v", shippingTrackingID, req.Address.State, prep.cartItems)
 
 	_ = cs.emptyUserCart(ctx, req.UserId)
+
+	log.Debugf("[PlaceOrder] Emptying cart for %s", req.UserId)
 
 	orderResult := &pb.OrderResult{
 		OrderId:            orderID.String(),
