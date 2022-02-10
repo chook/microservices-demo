@@ -16,6 +16,10 @@
 
 import random
 from locust import HttpUser, TaskSet, between
+from locust import HttpUser, TaskSet, task, between
+from locust import LoadTestShape
+from locust.user.wait_time import constant
+from faker import Faker
 
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
@@ -32,7 +36,10 @@ tracer_provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
 RequestsInstrumentor().instrument()
 URLLib3Instrumentor().instrument()
 
-products = [
+fake = Faker()
+
+product_weights = [0.1, 0.2, 0.2, 0.05, 0.03, 0.07, 0.05, 0.15, 0.08, 0.02]
+products_start = [
     '0PUK6V6EV0',
     '1YMWWN1N4O',
     '2ZYFJ3GM2N',
@@ -41,55 +48,69 @@ products = [
     '9SIQT8TOJO',
     'L9ECAV7KIM',
     'LS4PSXUNUM',
-    'OLJCESPC7Z']
+    'OLJCESPC7Z',
+    'OLJCESPRRR'] # CREATES ERROR
 
-def index(l):
-    l.client.get("/")
+products = random.choices(products_start, product_weights, k=1000)
+currencies_weights = [0.2, 0.6, 0.1, 0.1]
+currencies = random.choices(['EUR', 'USD', 'JPY', 'CAD'], currencies_weights, k=1000)
 
-def setCurrency(l):
-    currencies = ['EUR', 'USD', 'JPY', 'CAD']
-    l.client.post("/setCurrency",
-        {'currency_code': random.choice(currencies)})
-
-def browseProduct(l):
-    l.client.get("/product/" + random.choice(products))
-
-def viewCart(l):
-    l.client.get("/cart")
-
-def addToCart(l):
-    product = random.choice(products)
-    l.client.get("/product/" + product)
-    l.client.post("/cart", {
-        'product_id': product,
-        'quantity': random.choice([1,2,3,4,5,10])})
-
-def checkout(l):
-    addToCart(l)
-    l.client.post("/cart/checkout", {
-        'email': 'someone@example.com',
-        'street_address': '1600 Amphitheatre Parkway',
-        'zip_code': '94043',
-        'city': 'Mountain View',
-        'state': 'CA',
-        'country': 'United States',
-        'credit_card_number': '4432-8015-6152-0454',
-        'credit_card_expiration_month': '1',
-        'credit_card_expiration_year': '2039',
-        'credit_card_cvv': '672',
-    })
+class HackerBehavior(TaskSet):
+    @task(10)
+    def browseProduct(l):
+        l.client.get("/product/OLJCESPRRR")
 
 class UserBehavior(TaskSet):
+    def on_start(l):
+        l.for_checkout = {
+            'email': fake.email,
+            'street_address': fake.street_address(),
+            'credit_card_number': fake.credit_card_number(random.choice(['visa', 'mastercard'])),
+            'postcode': fake.postcode(),
+            'city': fake.city(),
+            'country_code': fake.country_code(),
+            'credit_card_security_code': fake.credit_card_security_code()
+        }
+    
+    @task(1)
+    def index(l):
+        l.client.get("/")
 
-    def on_start(self):
-        index(self)
+    @task(2)
+    def setCurrency(l):
+        l.client.post("/setCurrency", 
+            {'currency_code': random.choice(currencies)})
 
-    tasks = {index: 1,
-        setCurrency: 2,
-        browseProduct: 10,
-        addToCart: 2,
-        viewCart: 3,
-        checkout: 1}
+    @task(10)
+    def browseProduct(l):
+        l.client.get("/product/" + random.choice(products))
+
+    @task(3)
+    def viewCart(l):
+        l.client.get("/cart")
+
+    @task(2)
+    def addToCart(l):
+        product = random.choice(products)
+        l.client.get("/product/" + product)
+        l.client.post("/cart", {
+            'product_id': product,
+            'quantity': random.choice([1,2,3,4,5,10])})
+
+    @task(1)
+    def checkout(l):
+        l.client.post("/cart/checkout", {
+            'email': l.for_checkout['email'],
+            'street_address': l.for_checkout['street_address'],
+            'zip_code': l.for_checkout['postcode'],
+            'city': l.for_checkout['city'],
+            'state': l.for_checkout['country_code'],
+            'country': 'United States',
+            'credit_card_number': l.for_checkout['credit_card_number'],
+            'credit_card_expiration_month': '1',
+            'credit_card_expiration_year': '2039',
+            'credit_card_cvv': l.for_checkout['credit_card_security_code'],
+        })
 
 class WebsiteUser(HttpUser):
     tasks = [UserBehavior]
