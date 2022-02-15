@@ -23,15 +23,15 @@ from opentelemetry import trace
 class CustomJsonFormatter(jsonlogger.JsonFormatter):
   def add_fields(self, log_record, record, message_dict):
     super(CustomJsonFormatter, self).add_fields(log_record, record, message_dict)
-    if not log_record.get('otelTraceID'):
-      log_record['otelTraceID'] = trace.format_trace_id(trace.get_current_span().get_span_context().trace_id)
-    if not log_record.get('otelSpanID'):
-      log_record['otelSpanID'] = trace.format_span_id(trace.get_current_span().get_span_context().span_id)
+    if not log_record.get('trace_id'):
+      log_record['trace_id'] = trace.format_trace_id(trace.get_current_span().get_span_context().trace_id)
+    if not log_record.get('span_id'):
+      log_record['span_id'] = trace.format_span_id(trace.get_current_span().get_span_context().span_id)
 
 def getJSONLogger(name):
   logger = logging.getLogger(name)
   handler = logging.StreamHandler(sys.stdout)
-  formatter = CustomJsonFormatter('%(asctime)s %(levelname)s [%(name)s] [%(filename)s:%(lineno)d] [trace_id=%(otelTraceID)s span_id=%(otelSpanID)s] - %(message)s')
+  formatter = CustomJsonFormatter('%(asctime)s %(levelname)s [%(name)s] [%(filename)s:%(lineno)d] [trace_id=%(trace_id)s span_id=%(span_id)s] - %(message)s')
   handler.setFormatter(formatter)
   logger.addHandler(handler)
   logger.setLevel(logging.INFO)
