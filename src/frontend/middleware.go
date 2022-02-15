@@ -75,7 +75,7 @@ func (lh *logHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// var span trace.Span = trace.SpanFromContext(r.Context())
 
-	_, span := otel.Tracer("manual").Start(ctx, "Middleware")
+	ctx, span := otel.Tracer("manual").Start(ctx, "Middleware")
 	if span != nil {
 		span.SetAttributes(attribute.String("method", r.Method))
 		span.SetAttributes(attribute.String("path", r.URL.Path))
