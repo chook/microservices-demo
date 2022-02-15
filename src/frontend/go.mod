@@ -22,6 +22,8 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
+	github.com/uptrace/opentelemetry-go-extra/otellogrus v0.1.8 // indirect
+	github.com/uptrace/opentelemetry-go-extra/otelutil v0.1.8 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.3.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.3.0 // indirect
 	go.opentelemetry.io/otel/trace v1.3.0 // indirect
