@@ -71,21 +71,25 @@ func (lh *logHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log = log.WithField("session", v)
 	}
 
+	var span trace.Span = trace.SpanFromContext(r.Context())
+
+	log.Debugf("Span is: %+v", span)
+
+	if span != nil {
+		var spanContext trace.SpanContext = span.SpanContext()
+		
+		log.Debugf("SpanContext is: %+v", spanContext)
+
+		log.WithField("trace_id", spanContext.TraceID())
+		log.WithField("span_id", spanContext.SpanID())
+	}
+
 	log.Debugf("request %s %s started. requestID: %s", r.Method, r.URL.Path, requestID.String())
 	defer func() {
 		log = log.WithFields(logrus.Fields{
 			"http_resp_took_ms": int64(time.Since(start) / time.Millisecond),
 			"http_resp_status":  rr.status,
 			"http_resp_bytes":   rr.b})
-
-		var span trace.Span = trace.SpanFromContext(ctx)
-
-		if (span != nil) {
-			var spanContext trace.SpanContext = span.SpanContext()
-			
-			log.WithField("trace_id", spanContext.TraceID)
-			log.WithField("span_id", spanContext.SpanID)
-		}
 
 		if (rr.status < 400) {
 			log.Debugf("request %s %s completed with status: %d. requestID: %s", r.Method, r.URL.Path, rr.status, requestID.String())

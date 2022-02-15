@@ -32,8 +32,6 @@ import (
 
 	pb "github.com/GoogleCloudPlatform/microservices-demo/src/frontend/genproto/hipstershop"
 	"github.com/GoogleCloudPlatform/microservices-demo/src/frontend/money"
-
-	"go.opentelemetry.io/otel/trace"
 )
 
 type platformDetails struct {
@@ -151,15 +149,6 @@ func (plat *platformDetails) setPlatformDetails(env string) {
 func (fe *frontendServer) productHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
 	id := mux.Vars(r)["id"]
-
-	var span trace.Span = trace.SpanFromContext(r.Context())
-
-	if span != nil {
-		var spanContext trace.SpanContext = span.SpanContext()
-		
-		log.WithField("trace_id", spanContext.TraceID)
-		log.WithField("span_id", spanContext.SpanID)
-	}
 
 	if id == "" {
 		renderHTTPError(log, r, w, errors.New("product id not specified"), http.StatusBadRequest)
