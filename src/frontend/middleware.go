@@ -73,7 +73,7 @@ func (lh *logHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log = log.WithField("session", v)
 	}
 
-	var span trace.Span = trace.SpanFromContext(r.Context())
+	// var span trace.Span = trace.SpanFromContext(r.Context())
 
 	_, span := otel.Tracer("manual").Start(ctx, "Middleware")
 	if span != nil {
