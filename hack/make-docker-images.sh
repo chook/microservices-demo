@@ -22,7 +22,6 @@ SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 log() { echo "$1" >&2; }
 
 TAG="${TAG:?TAG env variable must be specified}"
-REPO_PREFIX="${REPO_PREFIX:?REPO_PREFIX env variable must be specified}"
 
 while IFS= read -d $'\0' -r dir; do
     # build image
@@ -33,11 +32,11 @@ while IFS= read -d $'\0' -r dir; do
     then
         builddir="${dir}/src"
     fi
-    image="${REPO_PREFIX}/$svcname:$TAG"
+    image="$svcname:$TAG"
     (
         cd "${builddir}"
         log "Building: ${image}"
-        docker build -t "${image}" .
+        docker build --platform linux/amd64 -t "${image}" .
 
         log "Pushing: ${image}"
         docker push "${image}"
