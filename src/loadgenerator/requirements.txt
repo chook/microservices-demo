@@ -103,6 +103,9 @@ requests==2.27.1
     # via
     #   -r requirements.in
     #   locust
+    #   requests-toolbelt
+requests_toolbelt==0.9.1
+    # via -r requirements.in
 roundrobin==0.0.2
     # via locust
 six==1.15.0

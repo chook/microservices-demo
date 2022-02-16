@@ -6,5 +6,6 @@ opentelemetry-instrumentation-requests==0.27b0
 opentelemetry-instrumentation-urllib3==0.27b0
 opentelemetry-sdk==1.8.0
 requests==2.27.1
+requests_toolbelt==0.9.1
 urllib3==1.26.8
 faker==8.12.1
