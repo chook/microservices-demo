@@ -124,7 +124,7 @@ run "-p 50051 -e PORT=50051 \
      " "$containername"
 
 containername=productcatalogservice
-run "-p 3550 -e PORT=3550 \
+run "-e EXTRA_LATENCY=47ms -p 3550 -e PORT=3550 \
      " "$containername"
 
 containername=recommendationservice
