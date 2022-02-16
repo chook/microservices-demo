@@ -47,10 +47,10 @@ class HipsterShopServer {
    */
   static ChargeServiceHandler(call, callback) {
     try {
-      const span = opentelemetry.trace.getSpan(opentelemetry.context.active())
-      const child = logger.child({ span_id: span.span_id, trace_id: span.trace_id })
+      // const span = opentelemetry.trace.getSpan(opentelemetry.context.active())
+      // const child = logger.child({ span_id: span.span_id, trace_id: span.trace_id })
 
-      child.info(`PaymentService#Charge invoked with request ${JSON.stringify(call.request)}`);
+      logger.info(`PaymentService#Charge invoked with request ${JSON.stringify(call.request)}`);
       const response = charge(call.request);
       callback(null, response);
     } catch (err) {
