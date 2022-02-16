@@ -63,7 +63,7 @@ class HackerBehavior(TaskSet):
 class UserBehavior(TaskSet):
     def on_start(l):
         l.for_checkout = {
-            'email': fake.email,
+            'email': fake.email(),
             'street_address': fake.street_address(),
             'credit_card_number': fake.credit_card_number(random.choice(['visa', 'mastercard'])),
             'postcode': fake.postcode(),
