@@ -18,6 +18,7 @@ import (
 	"context"
 	"net/http"
 	"time"
+	"math/rand"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
@@ -68,11 +69,11 @@ func (lh *logHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		"http_req_path":   r.URL.Path,
 		"http_req_method": r.Method,
 		"http_req_id":     requestID.String(),
-	})
+		"http_req_ip": 	   readUserIP(r)})
+
 	if v, ok := r.Context().Value(ctxKeySessionID{}).(string); ok {
 		log = log.WithField("session", v)
 	}
-
 	
 	// ctx, span := otel.Tracer("manual").Start(ctx, "Middleware")
 	// if span != nil {
@@ -108,6 +109,13 @@ func (lh *logHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Info("Chen was here")
 
 	lh.next.ServeHTTP(rr, r)
+}
+
+func readUserIP(r *http.Request) string {
+	ips := []string{"192.63.196.161", "172.217.18.110", "52.220.125.74", "151.101.194.28", "13.114.171.8", "34.206.39.153", "23.210.254.113", 
+	"151.101.129.111", "142.250.185.67", "151.101.64.144", "158.46.145.28"}
+
+	return ips[rand.Intn(len(ips))]
 }
 
 func ensureSessionID(next http.Handler) http.HandlerFunc {
