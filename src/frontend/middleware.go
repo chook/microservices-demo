@@ -22,9 +22,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	//"github.com/uptrace/opentelemetry-go-extra/otellogrus"
-	"go.opentelemetry.io/otel"
+	// "go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
-	"go.opentelemetry.io/otel/attribute"
+	// "go.opentelemetry.io/otel/attribute"
 )
 
 type ctxKeyLog struct{}
@@ -73,23 +73,15 @@ func (lh *logHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log = log.WithField("session", v)
 	}
 
-	// var span trace.Span = trace.SpanFromContext(r.Context())
-
-	ctx, span := otel.Tracer("manual").Start(ctx, "Middleware")
-	if span != nil {
-		span.SetAttributes(attribute.String("method", r.Method))
-		span.SetAttributes(attribute.String("path", r.URL.Path))
-
-		var spanContext trace.SpanContext = span.SpanContext()
-		
-		log = log.WithFields(logrus.Fields{
-			"trace_id": spanContext.TraceID(),
-			"span_id": spanContext.SpanID()})
-	}
-
+	
+	// ctx, span := otel.Tracer("manual").Start(ctx, "Middleware")
+	// if span != nil {
+	// 	span.SetAttributes(attribute.String("method", r.Method))
+	// 	span.SetAttributes(attribute.String("path", r.URL.Path))
+	// }
+	
 	log.Debugf("request %s %s started. requestID: %s", r.Method, r.URL.Path, requestID.String())
 	defer func() {
-
 		log = log.WithFields(logrus.Fields{
 			"http_resp_took_ms": int64(time.Since(start) / time.Millisecond),
 			"http_resp_status":  rr.status,
@@ -101,12 +93,20 @@ func (lh *logHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			log.Errorf("request %s %s failed with status: %d. requestID: %s", r.Method, r.URL.Path, rr.status, requestID.String())
 		}
 
-		span.SetAttributes(attribute.Int("status_code", rr.status))
-		span.End()
+		// span.SetAttributes(attribute.Int("status_code", rr.status))
+		// span.End()
 	}()
 
 	ctx = context.WithValue(ctx, ctxKeyLog{}, log)
 	r = r.WithContext(ctx)
+	spanContext := trace.SpanContextFromContext(ctx)
+	
+	log = log.WithFields(logrus.Fields{
+		"trace_id": spanContext.TraceID(),
+		"span_id": spanContext.SpanID()})
+
+	log.Info("Chen was here")
+
 	lh.next.ServeHTTP(rr, r)
 }
 

@@ -32,6 +32,7 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 
 	pb "github.com/GoogleCloudPlatform/microservices-demo/src/shippingservice/genproto/hipstershop"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
@@ -126,6 +127,12 @@ func (s *server) Watch(req *healthpb.HealthCheckRequest, ws healthpb.Health_Watc
 
 // GetQuote produces a shipping quote (cost) in USD.
 func (s *server) GetQuote(ctx context.Context, in *pb.GetQuoteRequest) (*pb.GetQuoteResponse, error) {
+	spanContext := trace.SpanContextFromContext(ctx)
+	
+	log := log.WithFields(logrus.Fields{
+		"trace_id": spanContext.TraceID(),
+		"span_id": spanContext.SpanID()})
+	
 	log.Infof("[GetQuote] received request: %v for ctx: %v", in, ctx)
 	defer log.Infof("[GetQuote] received request: %v for ctx: %v", in, ctx)
 
@@ -156,6 +163,12 @@ func (s *server) GetQuote(ctx context.Context, in *pb.GetQuoteRequest) (*pb.GetQ
 // ShipOrder mocks that the requested items will be shipped.
 // It supplies a tracking ID for notional lookup of shipment delivery status.
 func (s *server) ShipOrder(ctx context.Context, in *pb.ShipOrderRequest) (*pb.ShipOrderResponse, error) {
+	spanContext := trace.SpanContextFromContext(ctx)
+	
+	log := log.WithFields(logrus.Fields{
+		"trace_id": spanContext.TraceID(),
+		"span_id": spanContext.SpanID()})
+
 	log.Infof("[ShipOrder] received request: %v for ctx: %v", in, ctx)
 	defer log.Infof("[ShipOrder] received request: %v for ctx: %v", in, ctx)
 

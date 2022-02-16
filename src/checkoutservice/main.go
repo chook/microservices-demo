@@ -33,6 +33,7 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 
 	pb "github.com/GoogleCloudPlatform/microservices-demo/src/checkoutservice/genproto/hipstershop"
 	money "github.com/GoogleCloudPlatform/microservices-demo/src/checkoutservice/money"
@@ -142,6 +143,12 @@ func (cs *checkoutService) Watch(req *healthpb.HealthCheckRequest, ws healthpb.H
 }
 
 func (cs *checkoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb.PlaceOrderResponse, error) {
+	spanContext := trace.SpanContextFromContext(ctx)
+	
+	log := log.WithFields(logrus.Fields{
+		"trace_id": spanContext.TraceID(),
+		"span_id": spanContext.SpanID()})
+
 	log.Infof("[PlaceOrder] user_id=%s user_currency=%s", req.UserId, req.UserCurrency)
 
 	orderID, err := uuid.NewUUID()

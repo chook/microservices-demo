@@ -34,7 +34,7 @@ import (
 	"github.com/GoogleCloudPlatform/microservices-demo/src/frontend/money"
 
 	"go.opentelemetry.io/otel/trace"
-	"go.opentelemetry.io/otel/attribute"
+	// "go.opentelemetry.io/otel/attribute"
 )
 
 type platformDetails struct {
@@ -56,6 +56,12 @@ var validEnvs = []string{"local", "gcp", "azure", "aws", "onprem", "alibaba"}
 
 func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+	spanContext := trace.SpanContextFromContext(r.Context())
+	
+	log = log.WithFields(logrus.Fields{
+		"trace_id": spanContext.TraceID(),
+		"span_id": spanContext.SpanID()})
+
 	currency := currentCurrency(r)
 
 	log.Infof("loading home page with %v as currency", currency)
@@ -153,7 +159,11 @@ func (fe *frontendServer) productHandler(w http.ResponseWriter, r *http.Request)
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
 	id := mux.Vars(r)["id"]
 
-	trace.SpanFromContext(r.Context()).SetAttributes(attribute.Bool("error", true))
+	spanContext := trace.SpanContextFromContext(r.Context())
+	
+	log = log.WithFields(logrus.Fields{
+		"trace_id": spanContext.TraceID(),
+		"span_id": spanContext.SpanID()})
 
 	if id == "" {
 		renderHTTPError(log, r, w, errors.New("product id not specified"), http.StatusBadRequest)
@@ -217,6 +227,12 @@ func (fe *frontendServer) productHandler(w http.ResponseWriter, r *http.Request)
 
 func (fe *frontendServer) addToCartHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+	spanContext := trace.SpanContextFromContext(r.Context())
+	
+	log = log.WithFields(logrus.Fields{
+		"trace_id": spanContext.TraceID(),
+		"span_id": spanContext.SpanID()})
+
 	quantity, _ := strconv.ParseUint(r.FormValue("quantity"), 10, 32)
 	productID := r.FormValue("product_id")
 	if productID == "" || quantity == 0 {
@@ -241,6 +257,12 @@ func (fe *frontendServer) addToCartHandler(w http.ResponseWriter, r *http.Reques
 
 func (fe *frontendServer) emptyCartHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+	spanContext := trace.SpanContextFromContext(r.Context())
+	
+	log = log.WithFields(logrus.Fields{
+		"trace_id": spanContext.TraceID(),
+		"span_id": spanContext.SpanID()})
+
 	log.Debug("emptying cart")
 
 	if err := fe.emptyCart(r.Context(), sessionID(r)); err != nil {
@@ -253,6 +275,12 @@ func (fe *frontendServer) emptyCartHandler(w http.ResponseWriter, r *http.Reques
 
 func (fe *frontendServer) viewCartHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+	spanContext := trace.SpanContextFromContext(r.Context())
+	
+	log = log.WithFields(logrus.Fields{
+		"trace_id": spanContext.TraceID(),
+		"span_id": spanContext.SpanID()})
+
 	log.Debug("about to render user cart")
 
 	currencies, err := fe.getCurrencies(r.Context())
@@ -334,6 +362,12 @@ func (fe *frontendServer) viewCartHandler(w http.ResponseWriter, r *http.Request
 
 func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+	spanContext := trace.SpanContextFromContext(r.Context())
+	
+	log = log.WithFields(logrus.Fields{
+		"trace_id": spanContext.TraceID(),
+		"span_id": spanContext.SpanID()})
+
 	log.Debug("about to place order")
 
 	var (
@@ -421,6 +455,12 @@ func (fe *frontendServer) logoutHandler(w http.ResponseWriter, r *http.Request) 
 
 func (fe *frontendServer) setCurrencyHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+	spanContext := trace.SpanContextFromContext(r.Context())
+	
+	log = log.WithFields(logrus.Fields{
+		"trace_id": spanContext.TraceID(),
+		"span_id": spanContext.SpanID()})
+
 	cur := r.FormValue("currency_code")
 	log.Debugf("changing currency from %v to %v", currentCurrency(r), cur)
 
@@ -451,6 +491,12 @@ func (fe *frontendServer) chooseAd(ctx context.Context, ctxKeys []string, log lo
 }
 
 func renderHTTPError(log logrus.FieldLogger, r *http.Request, w http.ResponseWriter, err error, code int) {
+	spanContext := trace.SpanContextFromContext(r.Context())
+	
+	log = log.WithFields(logrus.Fields{
+		"trace_id": spanContext.TraceID(),
+		"span_id": spanContext.SpanID()})
+
 	rid := r.Context().Value(ctxKeyRequestID{})
 	sid := sessionID(r)
 
