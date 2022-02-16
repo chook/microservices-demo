@@ -27,7 +27,6 @@ from opentelemetry.sdk.trace.export import (BatchSpanProcessor)
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
 from opentelemetry.instrumentation.urllib3 import URLLib3Instrumentor
-from requests_toolbelt.adapters.source import SourceAddressAdapter
 
 tracer_provider = TracerProvider()
 trace.set_tracer_provider(tracer_provider)
@@ -57,26 +56,14 @@ currencies_weights = [0.2, 0.6, 0.1, 0.1]
 currencies = random.choices(['EUR', 'USD', 'JPY', 'CAD'], currencies_weights, k=1000)
 
 class HackerBehavior(TaskSet):
-    def on_start(self):
-        bad_reupration_ip = '218.65.30.43'
-        self.client.mount("https://", SourceAddressAdapter(bad_reupration_ip))
-        self.client.mount("http://", SourceAddressAdapter(bad_reupration_ip)) 
-
     @task(10)
     def browseProduct(l):
         l.client.get("/product/OLJCESPRRR")
 
 class UserBehavior(TaskSet):
-    def on_start(self):
+    def on_start(l):
 
-        # List of IP's that can be used as "source" - hardcoded for simplicity
-        ips = ['192.63.196.161', '172.217.18.110', '52.220.125.74', '151.101.194.28', '13.114.171.8', '34.206.39.153', '23.210.254.113', 
-            '151.101.129.111', '142.250.185.67', '151.101.64.144', '158.46.145.28']
-        i = random.randint(0, len(ips)-1)
-        self.client.mount("https://", SourceAddressAdapter(ips[i]))
-        self.client.mount("http://", SourceAddressAdapter(ips[i]))
-
-        self.for_checkout = {
+        l.for_checkout = {
             'email': fake.email(),
             'street_address': fake.street_address(),
             'credit_card_number': fake.credit_card_number(random.choice(['visa', 'mastercard'])),
