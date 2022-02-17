@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import random
+import random, math
 from locust import HttpUser, TaskSet, between
 from locust import HttpUser, TaskSet, task, between
 from locust import LoadTestShape
@@ -115,4 +115,40 @@ class UserBehavior(TaskSet):
 
 class WebsiteUser(HttpUser):
     tasks = [UserBehavior]
-    wait_time = between(1, 10)
+    wait_time = between(0.4, 3)
+
+class HackerUser(HttpUser):
+    tasks = [HackerBehavior]
+    constant_throughput = 1000
+
+class DoubleWave(LoadTestShape):
+    """
+    A shape to immitate some specific user behaviour. In this example, midday
+    and evening meal times. First peak of users appear at time_limit/3 and
+    second peak appears at 2*time_limit/3
+    Settings:
+        min_users -- minimum users
+        peak_one_users -- users in first peak
+        peak_two_users -- users in second peak
+        time_limit -- total length of test
+    """
+
+    min_users = 50
+    peak_one_users = 200
+    peak_two_users = 90
+    time_limit = (60*60*24)
+
+    def tick(self):
+        run_time = round(self.get_run_time()) % (60*60*24)
+
+        if run_time < self.time_limit:
+            user_count = (
+                (self.peak_one_users - self.min_users)
+                * math.e ** -(((run_time / (self.time_limit / 10 * 2 / 3)) - 5) ** 2)
+                + (self.peak_two_users - self.min_users)
+                * math.e ** -(((run_time / (self.time_limit / 10 * 2 / 3)) - 10) ** 2)
+                + self.min_users
+            )
+            return (round(user_count), round(user_count))
+        else:
+            return None
