@@ -13,13 +13,13 @@ exporters:
     loglevel: debug
   coralogix:
     endpoint: "tracing-ingress.coralogix.us:9443"
-    private_key: "e0cf9f2b-3487-ee85-78e0-70519ef2a08b"
+    private_key: "xxx"
     application_name: "otel-coralogix"
     subsystem_name: "traces"
   prometheusremotewrite:
     endpoint: "https://metircs-api.coralogix.us"
     headers:
-      Authorization: "Bearer e0cf9f2b-3487-ee85-78e0-70519ef2a08b"
+      Authorization: "Bearer xxx"
 
     external_labels:
       appLabelName: "otel-coralogix"
