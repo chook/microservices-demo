@@ -11,10 +11,27 @@ exporters:
       insecure: true
   logging:
     loglevel: debug
+  coralogix:
+    endpoint: "tracing-ingress.coralogix.us:9443"
+    private_key: "e0cf9f2b-3487-ee85-78e0-70519ef2a08b"
+    application_name: "otel-coralogix"
+    subsystem_name: "traces"
+  prometheusremotewrite:
+    endpoint: "https://metircs-api.coralogix.us"
+    headers:
+      Authorization: "Bearer e0cf9f2b-3487-ee85-78e0-70519ef2a08b"
+
+    external_labels:
+      appLabelName: "otel-coralogix"
+      subSystemLabelName: "metrics"
 
 service:
   pipelines:
     traces:
       receivers: [otlp]
       processors: []
-      exporters: [logging,jaeger]
+      exporters: [logging,coralogix]
+    metrics:
+      receivers: [otlp]
+      processors: []
+      exporters: [prometheusremotewrite]
