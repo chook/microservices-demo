@@ -115,7 +115,7 @@ class UserBehavior(TaskSet):
 
 class WebsiteUser(HttpUser):
     tasks = [UserBehavior]
-    wait_time = between(0.4, 3)
+    wait_time = between(0.4, 4)
 
 class HackerUser(HttpUser):
     tasks = [HackerBehavior]
@@ -133,9 +133,9 @@ class DoubleWave(LoadTestShape):
         time_limit -- total length of test
     """
 
-    min_users = 50
-    peak_one_users = 200
-    peak_two_users = 90
+    min_users = 19
+    peak_one_users = 81
+    peak_two_users = 35
     time_limit = (60*60*24)
 
     def tick(self):
