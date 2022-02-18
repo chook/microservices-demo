@@ -24,7 +24,7 @@ import (
 	"github.com/sirupsen/logrus"
 	//"github.com/uptrace/opentelemetry-go-extra/otellogrus"
 	// "go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/trace"
+	// "go.opentelemetry.io/otel/trace"
 	// "go.opentelemetry.io/otel/attribute"
 )
 
@@ -91,11 +91,11 @@ func (lh *logHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	ctx = context.WithValue(ctx, ctxKeyLog{}, log)
 	r = r.WithContext(ctx)
-	spanContext := trace.SpanContextFromContext(ctx)
+	// spanContext := trace.SpanContextFromContext(ctx)
 	
-	log = log.WithFields(logrus.Fields{
-		"trace_id": spanContext.TraceID(),
-		"span_id": spanContext.SpanID()})
+	// log = log.WithFields(logrus.Fields{
+	// 	"trace_id": spanContext.TraceID(),
+	// 	"span_id": spanContext.SpanID()})
 
 	lh.next.ServeHTTP(rr, r)
 }
