@@ -74,13 +74,7 @@ func (lh *logHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if v, ok := r.Context().Value(ctxKeySessionID{}).(string); ok {
 		log = log.WithField("session", v)
 	}
-	
-	// ctx, span := otel.Tracer("manual").Start(ctx, "Middleware")
-	// if span != nil {
-	// 	span.SetAttributes(attribute.String("method", r.Method))
-	// 	span.SetAttributes(attribute.String("path", r.URL.Path))
-	// }
-	
+
 	log.Debugf("request %s %s started. requestID: %s", r.Method, r.URL.Path, requestID.String())
 	defer func() {
 		log = log.WithFields(logrus.Fields{
@@ -93,9 +87,6 @@ func (lh *logHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		} else {
 			log.Errorf("request %s %s failed with status: %d. requestID: %s", r.Method, r.URL.Path, rr.status, requestID.String())
 		}
-
-		// span.SetAttributes(attribute.Int("status_code", rr.status))
-		// span.End()
 	}()
 
 	ctx = context.WithValue(ctx, ctxKeyLog{}, log)
@@ -105,8 +96,6 @@ func (lh *logHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log = log.WithFields(logrus.Fields{
 		"trace_id": spanContext.TraceID(),
 		"span_id": spanContext.SpanID()})
-
-	log.Info("Chen was here")
 
 	lh.next.ServeHTTP(rr, r)
 }
