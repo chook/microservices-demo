@@ -16,9 +16,10 @@ package main
 
 import (
 	"context"
+	"go.opentelemetry.io/otel/trace"
+	"math/rand"
 	"net/http"
 	"time"
-	"math/rand"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
@@ -63,13 +64,16 @@ func (lh *logHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	requestID, _ := uuid.NewRandom()
 	ctx = context.WithValue(ctx, ctxKeyRequestID{}, requestID.String())
 
+	spanContext := trace.SpanContextFromContext(r.Context())
 	start := time.Now()
 	rr := &responseRecorder{w: w}
 	log := lh.log.WithFields(logrus.Fields{
 		"http_req_path":   r.URL.Path,
 		"http_req_method": r.Method,
 		"http_req_id":     requestID.String(),
-		"http_req_ip": 	   readUserIP(r)})
+		"http_req_ip":     readUserIP(r),
+		"trace_id": 	   spanContext.TraceID(),
+		"span_id":  	   spanContext.SpanID()})
 
 	if v, ok := r.Context().Value(ctxKeySessionID{}).(string); ok {
 		log = log.WithField("session", v)
@@ -82,7 +86,7 @@ func (lh *logHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			"http_resp_status":  rr.status,
 			"http_resp_bytes":   rr.b})
 
-		if (rr.status < 400) {
+		if rr.status < 400 {
 			log.Debugf("request %s %s completed with status: %d. requestID: %s", r.Method, r.URL.Path, rr.status, requestID.String())
 		} else {
 			log.Errorf("request %s %s failed with status: %d. requestID: %s", r.Method, r.URL.Path, rr.status, requestID.String())
@@ -91,18 +95,13 @@ func (lh *logHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	ctx = context.WithValue(ctx, ctxKeyLog{}, log)
 	r = r.WithContext(ctx)
-	// spanContext := trace.SpanContextFromContext(ctx)
-	
-	// log = log.WithFields(logrus.Fields{
-	// 	"trace_id": spanContext.TraceID(),
-	// 	"span_id": spanContext.SpanID()})
 
 	lh.next.ServeHTTP(rr, r)
 }
 
 func readUserIP(r *http.Request) string {
-	ips := []string{"192.63.196.161", "172.217.18.110", "52.220.125.74", "151.101.194.28", "13.114.171.8", "34.206.39.153", "23.210.254.113", 
-	"151.101.129.111", "142.250.185.67", "151.101.64.144", "158.46.145.28"}
+	ips := []string{"192.63.196.161", "172.217.18.110", "52.220.125.74", "151.101.194.28", "13.114.171.8", "34.206.39.153", "23.210.254.113",
+		"151.101.129.111", "142.250.185.67", "151.101.64.144", "158.46.145.28"}
 
 	return ips[rand.Intn(len(ips))]
 }

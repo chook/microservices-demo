@@ -29,13 +29,13 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 
+	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/trace"
-	"go.opentelemetry.io/otel/attribute"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -134,6 +134,8 @@ func main() {
 	r := mux.NewRouter()
 	r.Use(otelmux.Middleware("server"))
 	// r.Use(loggingMiddleware)
+	// add session ID
+	r.Use(handlers)
 	r.HandleFunc("/", svc.homeHandler).Methods(http.MethodGet, http.MethodHead)
 	r.HandleFunc("/product/{id}", svc.productHandler).Methods(http.MethodGet, http.MethodHead)
 	r.HandleFunc("/cart", svc.viewCartHandler).Methods(http.MethodGet, http.MethodHead)
@@ -146,41 +148,42 @@ func main() {
 	r.HandleFunc("/robots.txt", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "User-agent: *\nDisallow: /") })
 	r.HandleFunc("/_healthz", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "ok") })
 
-	var handler http.Handler = r
-	handler = &logHandler{log: log, next: handler} // add logging
-	handler = ensureSessionID(handler)             // add session ID
-
 	log.Infof("starting server on " + addr + ":" + srvPort)
-	log.Fatal(http.ListenAndServe(addr+":"+srvPort, handler))
+	log.Fatal(http.ListenAndServe(addr+":"+srvPort, r))
 }
 
+func handlers(next http.Handler) http.Handler {
+	handler := &logHandler{log: log, next: next} // add logging
+	return ensureSessionID(handler)
+
+}
 func loggingMiddleware(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
-        // Do stuff here
-        log.Println("chen was here")
+		// Do stuff here
+		log.Println("chen was here")
 
 		tracer := otel.Tracer("io.opentelemetry.traces.hello")
 		// Create a custom span
 		_, mySpan := tracer.Start(ctx, "mySpan")
-		
+
 		mySpan.SetAttributes(attribute.String("method", r.Method))
 		mySpan.SetAttributes(attribute.String("path", r.URL.Path))
 
 		var spanContext trace.SpanContext = mySpan.SpanContext()
-		
+
 		temp_log := log.WithFields(logrus.Fields{
 			"trace_id": spanContext.TraceID(),
-			"span_id": spanContext.SpanID()})
+			"span_id":  spanContext.SpanID()})
 
 		temp_log.Infof("chen was here2")
 
 		mySpan.End()
 
-        // Call the next handler, which can be another middleware in the chain, or the final handler.
-        next.ServeHTTP(w, r)
-    })
+		// Call the next handler, which can be another middleware in the chain, or the final handler.
+		next.ServeHTTP(w, r)
+	})
 }
 
 func mustMapEnv(target *string, envKey string) {
