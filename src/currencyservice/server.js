@@ -114,7 +114,7 @@ function convert (call, callback) {
       result.nanos = Math.floor(result.nanos);
       result.currency_code = request.to_code;
 
-      logger.info(`conversion request successful: ${result}`);
+      logger.info("conversion request successful: " + JSON.stringify(result));
       callback(null, result);
     });
   } catch (err) {
