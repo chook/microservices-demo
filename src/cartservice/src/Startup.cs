@@ -7,9 +7,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using cartservice.cartstore;
 using cartservice.services;
 using OpenTelemetry.Trace;
+using OpenTelemetry.Logs;
 
 namespace cartservice
 {
@@ -25,7 +27,45 @@ namespace cartservice
         // This method gets called by the runtime. Use this method to add services to the container.
         // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
         public void ConfigureServices(IServiceCollection services)
-        {                
+        {
+            // using var loggerFactory = LoggerFactory.Create(builder =>
+            // {
+            //     builder.AddOpenTelemetry(options =>
+            //     {
+            //         options.AddConsoleExporter();
+            //     });
+            // });
+
+            AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
+
+            var loggerFactory = LoggerFactory.Create(logging =>
+            {
+                logging.Configure(options =>
+                {
+                    options.ActivityTrackingOptions = ActivityTrackingOptions.SpanId
+                                                        | ActivityTrackingOptions.TraceId
+                                                        | ActivityTrackingOptions.ParentId
+                                                        | ActivityTrackingOptions.Baggage
+                                                        | ActivityTrackingOptions.Tags;
+                }).AddJsonConsole(options =>
+                {
+                    options.IncludeScopes = true;
+                    options.UseUtcTimestamp = true;
+                    options.TimestampFormat = "yyyy-MM-ddTHH:mm:ssZ";
+                });
+            });
+
+            var logger = loggerFactory.CreateLogger<Startup>();
+
+            logger.LogInformation(eventId: 123, "Hello from {name} {price}.", "tomato", 2.99);
+
+            if (logger.IsEnabled(LogLevel.Debug))
+            {
+                // If logger.IsEnabled returned false, the code doesn't have to spend time evaluating the arguments.
+                // This can be especially helpful if the arguments are expensive to calculate.
+                logger.LogDebug(eventId: 501, "System.Environment.Version: {version}.", System.Environment.Version);
+            }   
+            
             string redisAddress = Configuration["REDIS_ADDR"];
             RedisCartStore cartStore = null;
             if (string.IsNullOrEmpty(redisAddress))
@@ -35,7 +75,7 @@ namespace cartservice
                 Console.WriteLine("REDIS_ADDR environment variable is required.");
                 System.Environment.Exit(1);
             }
-            cartStore = new RedisCartStore(redisAddress);
+            cartStore = new RedisCartStore(redisAddress, loggerFactory.CreateLogger<RedisCartStore>());
 
             // Initialize the redis store
             cartStore.InitializeAsync().GetAwaiter().GetResult();
@@ -50,7 +90,12 @@ namespace cartservice
                 .AddAspNetCoreInstrumentation()
                 .AddGrpcClientInstrumentation()
                 .AddHttpClientInstrumentation()
-                .AddOtlpExporter());
+                .AddOtlpExporter(opt =>
+                    {
+                        //opt.Endpoint = new Uri("http://otelcollector:4317");
+                        opt.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
+                    })
+                );
 
             services.AddGrpc();
         }
