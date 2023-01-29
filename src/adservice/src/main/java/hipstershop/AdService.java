@@ -92,8 +92,9 @@ public final class AdService {
     @Override
     public void getAds(AdRequest req, StreamObserver<AdResponse> responseObserver) {
       AdService service = AdService.getInstance();
+      List<Ad> allAds = new ArrayList<>();
+      
       try {
-        List<Ad> allAds = new ArrayList<>();
         logger.info("received ad request (context_words=" + req.getContextKeysList() + ")");
         if (req.getContextKeysCount() > 0) {
           for (int i = 0; i < req.getContextKeysCount(); i++) {
@@ -119,7 +120,7 @@ public final class AdService {
         responseObserver.onNext(reply);
         responseObserver.onCompleted();
       } catch (StatusRuntimeException e) {
-        logger.error("GetAds Failed with status " + e.getStatus(), e);
+        logger.error("GetAds Failed with status " + e.getStatus() + " on ads: " + allAds.toString(), e);
         responseObserver.onError(e);
       }
     }
