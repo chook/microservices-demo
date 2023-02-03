@@ -12,6 +12,7 @@ run() {
     log "$2"
     docker run -d --rm --network=$networkName \
     -e OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=$otelCollector \
+    -e OTEL_EXPORTER_OTLP_ENDPOINT=$otelCollector \
     -e OTEL_RESOURCE_ATTRIBUTES=service.name=$containername,service.version=$TAG \
     $1 --name $2 $2:$TAG >&2 || true
 }
