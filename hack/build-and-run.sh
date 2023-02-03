@@ -73,6 +73,7 @@ docker run -d --rm --network="$networkName" --name jaeger \
 
 containername="$otelCollectorName"
 docker run -d --rm --network="$networkName" \
+     -e CORALOGIX_PRIVATE_KEY=$CORALOGIX_PRIVATE_KEY \
      --name "$otelCollectorName" \
      "$otelCollectorName:$TAG" >&2 || true
 
