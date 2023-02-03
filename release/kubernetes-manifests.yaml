@@ -33,15 +33,36 @@ spec:
       terminationGracePeriodSeconds: 5
       containers:
       - name: server
-        image: gcr.io/google-samples/microservices-demo/emailservice:v0.2.4
+        image: 074157727657.dkr.ecr.us-east-2.amazonaws.com/emailservice:2.1.0
         ports:
         - containerPort: 8080
         env:
         - name: PORT
           value: "8080"
-        # - name: DISABLE_TRACING
-        #   value: "1"
+        - name: CHEN
+          value: "8080"
+        - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+          value: "http://otelcollector:4317"
+        - name: OTEL_K8S_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: OTEL_K8S_NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        - name: OTEL_K8S_POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        - name: OTEL_RESOURCE_ATTRIBUTES
+          value: "service.name=emailservice,service.version=2.1.0,k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.container.name=server"
         - name: DISABLE_PROFILER
+          value: "1"
+        - name: DISABLE_TRACING
           value: "1"
         readinessProbe:
           periodSeconds: 5
@@ -88,7 +109,7 @@ spec:
       serviceAccountName: default
       containers:
         - name: server
-          image: gcr.io/google-samples/microservices-demo/checkoutservice:v0.2.4
+          image: 074157727657.dkr.ecr.us-east-2.amazonaws.com/checkoutservice:2.1.0
           ports:
           - containerPort: 5050
           readinessProbe:
@@ -112,6 +133,25 @@ spec:
             value: "currencyservice:7000"
           - name: CART_SERVICE_ADDR
             value: "cartservice:7070"
+          - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+            value: "http://otelcollector:4317"
+          - name: OTEL_K8S_NAMESPACE
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.namespace
+          - name: OTEL_K8S_NODE_NAME
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: spec.nodeName
+          - name: OTEL_K8S_POD_NAME
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.name
+          - name: OTEL_RESOURCE_ATTRIBUTES
+            value: "service.name=checkoutservice,service.version=2.1.0,k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.container.name=server"
           # - name: DISABLE_STATS
           #   value: "1"
           # - name: DISABLE_TRACING
@@ -158,7 +198,7 @@ spec:
       terminationGracePeriodSeconds: 5
       containers:
       - name: server
-        image: gcr.io/google-samples/microservices-demo/recommendationservice:v0.2.4
+        image: 074157727657.dkr.ecr.us-east-2.amazonaws.com/recommendationservice:2.1.0
         ports:
         - containerPort: 8080
         readinessProbe:
@@ -174,6 +214,25 @@ spec:
           value: "8080"
         - name: PRODUCT_CATALOG_SERVICE_ADDR
           value: "productcatalogservice:3550"
+        - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+          value: "http://otelcollector:4317"
+        - name: OTEL_K8S_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: OTEL_K8S_NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        - name: OTEL_K8S_POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        - name: OTEL_RESOURCE_ATTRIBUTES
+          value: "service.name=recommendationservice,service.version=2.1.0,k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.container.name=server"
         # - name: DISABLE_TRACING
         #   value: "1"
         # - name: DISABLE_PROFILER
@@ -206,6 +265,7 @@ kind: Deployment
 metadata:
   name: frontend
 spec:
+  replicas: 3
   selector:
     matchLabels:
       app: frontend
@@ -219,7 +279,7 @@ spec:
       serviceAccountName: default
       containers:
         - name: server
-          image: gcr.io/google-samples/microservices-demo/frontend:v0.2.4
+          image: 074157727657.dkr.ecr.us-east-2.amazonaws.com/frontend:2.1.0
           ports:
           - containerPort: 8080
           readinessProbe:
@@ -255,10 +315,29 @@ spec:
             value: "checkoutservice:5050"
           - name: AD_SERVICE_ADDR
             value: "adservice:9555"
+          - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+            value: "http://otelcollector:4317"
+          - name: OTEL_K8S_NAMESPACE
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.namespace
+          - name: OTEL_K8S_NODE_NAME
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: spec.nodeName
+          - name: OTEL_K8S_POD_NAME
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.name
+          - name: OTEL_RESOURCE_ATTRIBUTES
+            value: "service.name=frontend,service.version=2.1.0,k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.container.name=server"
           # # ENV_PLATFORM: One of: local, gcp, aws, azure, onprem, alibaba
           # # When not set, defaults to "local" unless running in GKE, otherwies auto-sets to gcp 
-          # - name: ENV_PLATFORM 
-          #   value: "aws"
+          - name: ENV_PLATFORM 
+            value: "aws"
           # - name: DISABLE_TRACING
           #   value: "1"
           # - name: DISABLE_PROFILER
@@ -290,6 +369,11 @@ apiVersion: v1
 kind: Service
 metadata:
   name: frontend-external
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws:acm:us-east-2:074157727657:certificate/cb9357fb-50f0-4376-8f0d-43dc7bf800cd
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: http
+    service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "443,8443"
+    service.beta.kubernetes.io/aws-load-balancer-ssl-negotiation-policy: "ELBSecurityPolicy-2016-08"
 spec:
   type: LoadBalancer
   selector:
@@ -297,6 +381,9 @@ spec:
   ports:
   - name: http
     port: 80
+    targetPort: 8080
+  - name: https
+    port: 443
     targetPort: 8080
 ---
 apiVersion: apps/v1
@@ -316,12 +403,31 @@ spec:
       terminationGracePeriodSeconds: 5
       containers:
       - name: server
-        image: gcr.io/google-samples/microservices-demo/paymentservice:v0.2.4
+        image: 074157727657.dkr.ecr.us-east-2.amazonaws.com/paymentservice:2.1.0
         ports:
         - containerPort: 50051
         env:
         - name: PORT
           value: "50051"
+        - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+          value: "http://otelcollector:4317"
+        - name: OTEL_K8S_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: OTEL_K8S_NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        - name: OTEL_K8S_POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        - name: OTEL_RESOURCE_ATTRIBUTES
+          value: "service.name=paymentservice,service.version=2.1.0,k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.container.name=server"
         readinessProbe:
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:50051"]
@@ -366,12 +472,31 @@ spec:
       terminationGracePeriodSeconds: 5
       containers:
       - name: server
-        image: gcr.io/google-samples/microservices-demo/productcatalogservice:v0.2.4
+        image: 074157727657.dkr.ecr.us-east-2.amazonaws.com/productcatalogservice:2.1.0
         ports:
         - containerPort: 3550
         env:
         - name: PORT
           value: "3550"
+        - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+          value: "http://otelcollector:4317"
+        - name: OTEL_K8S_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: OTEL_K8S_NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        - name: OTEL_K8S_POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        - name: OTEL_RESOURCE_ATTRIBUTES
+          value: "service.name=productcatalogservice,service.version=2.1.0,k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.container.name=server"
         # - name: DISABLE_STATS
         #   value: "1"
         # - name: DISABLE_TRACING
@@ -424,12 +549,34 @@ spec:
       terminationGracePeriodSeconds: 5
       containers:
       - name: server
-        image: gcr.io/google-samples/microservices-demo/cartservice:v0.2.4
+        image: 074157727657.dkr.ecr.us-east-2.amazonaws.com/cartservice:2.1.0
         ports:
         - containerPort: 7070
         env:
         - name: REDIS_ADDR
           value: "redis-cart:6379"
+        - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+          value: "http://otelcollector:4317"
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "http://otelcollector:4317"
+        - name: OTEL_K8S_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: OTEL_K8S_NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        - name: OTEL_K8S_POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        - name: OTEL_RESOURCE_ATTRIBUTES
+          value: "service.name=cartservice,service.version=2.1.0,k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.container.name=server,telemetry.sdk.language
+=dotnet,telemetry.sdk.name=opentelemetry,telemetry.sdk.version=1.0.0"
         resources:
           requests:
             cpu: 200m
@@ -497,12 +644,31 @@ spec:
           value: "frontend:80"
       containers:
       - name: main
-        image: gcr.io/google-samples/microservices-demo/loadgenerator:v0.2.4
+        image: 074157727657.dkr.ecr.us-east-2.amazonaws.com/loadgenerator:2.1.0
         env:
         - name: FRONTEND_ADDR
           value: "frontend:80"
         - name: USERS
           value: "10"
+        - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+          value: "http://otelcollector:4317"
+        - name: OTEL_K8S_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: OTEL_K8S_NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        - name: OTEL_K8S_POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        - name: OTEL_RESOURCE_ATTRIBUTES
+          value: "service.name=loadgenerator,service.version=2.1.0,k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.container.name=main"
         resources:
           requests:
             cpu: 300m
@@ -528,13 +694,32 @@ spec:
       terminationGracePeriodSeconds: 5
       containers:
       - name: server
-        image: gcr.io/google-samples/microservices-demo/currencyservice:v0.2.4
+        image: 074157727657.dkr.ecr.us-east-2.amazonaws.com/currencyservice:2.1.0
         ports:
         - name: grpc
           containerPort: 7000
         env:
         - name: PORT
           value: "7000"
+        - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+          value: "http://otelcollector:4317"
+        - name: OTEL_K8S_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: OTEL_K8S_NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        - name: OTEL_K8S_POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        - name: OTEL_RESOURCE_ATTRIBUTES
+          value: "service.name=currencyservice,service.version=2.1.0,k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.container.name=server"
         # - name: DISABLE_TRACING
         #   value: "1"
         # - name: DISABLE_PROFILER
@@ -584,12 +769,31 @@ spec:
       serviceAccountName: default
       containers:
       - name: server
-        image: gcr.io/google-samples/microservices-demo/shippingservice:v0.2.4
+        image: 074157727657.dkr.ecr.us-east-2.amazonaws.com/shippingservice:2.1.0
         ports:
         - containerPort: 50051
         env:
         - name: PORT
           value: "50051"
+        - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+          value: "http://otelcollector:4317"
+        - name: OTEL_K8S_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: OTEL_K8S_NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        - name: OTEL_K8S_POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        - name: OTEL_RESOURCE_ATTRIBUTES
+          value: "service.name=shippingservice,service.version=2.1.0,k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.container.name=server"
         # - name: DISABLE_STATS
         #   value: "1"
         # - name: DISABLE_TRACING
@@ -636,6 +840,9 @@ spec:
       app: redis-cart
   template:
     metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9121"
       labels:
         app: redis-cart
     spec:
@@ -662,6 +869,14 @@ spec:
           requests:
             cpu: 70m
             memory: 200Mi
+      - name: redis-exporter
+        image: oliver006/redis_exporter:latest
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        ports:
+        - containerPort: 9121
       volumes:
       - name: redis-data
         emptyDir: {}
@@ -696,12 +911,31 @@ spec:
       terminationGracePeriodSeconds: 5
       containers:
       - name: server
-        image: gcr.io/google-samples/microservices-demo/adservice:v0.2.4
+        image: 074157727657.dkr.ecr.us-east-2.amazonaws.com/adservice:2.1.0
         ports:
         - containerPort: 9555
         env:
         - name: PORT
           value: "9555"
+        - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+          value: "http://otelcollector:4317"
+        - name: OTEL_K8S_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: OTEL_K8S_NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        - name: OTEL_K8S_POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        - name: OTEL_RESOURCE_ATTRIBUTES
+          value: "service.name=adservice,service.version=2.1.0,k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.container.name=server"
         # - name: DISABLE_STATS
         #   value: "1"
         # - name: DISABLE_TRACING
@@ -716,12 +950,12 @@ spec:
             cpu: 300m
             memory: 300Mi
         readinessProbe:
-          initialDelaySeconds: 20
+          initialDelaySeconds: 45
           periodSeconds: 15
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:9555"]
         livenessProbe:
-          initialDelaySeconds: 20
+          initialDelaySeconds: 45
           periodSeconds: 15
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:9555"]
@@ -739,3 +973,188 @@ spec:
     port: 9555
     targetPort: 9555
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: collector-config
+data:
+  collector.yaml: |
+    receivers:
+      otlp:
+        protocols: 
+          grpc:
+          http:
+    processors:
+      k8sattributes:
+        filter:
+          node_from_env_var: KUBE_NODE_NAME
+      batch:
+        send_batch_max_size: 24576
+        send_batch_size: 12288
+        timeout: 500ms
+      memory_limiter:
+        check_interval: 5s
+        limit_percentage: 80
+        spike_limit_percentage: 25
+      spanmetrics:
+        dimensions:
+        - name: k8s.deployment.name
+        - name: k8s.statefulset.name
+        - name: k8s.daemonset.name
+        - name: k8s.cronjob.name
+        - name: k8s.job.name
+        - name: k8s.container.name
+        - name: k8s.node.name
+        - name: k8s.namespace.name
+        metrics_exporter: coralogix
+    exporters:
+      logging:
+      coralogix:
+        traces:
+          endpoint: "otel-traces.coralogix.com:443"
+        metrics:
+          endpoint: "otel-metrics.coralogix.com:443"
+        logs:
+          endpoint: "otel-logs.coralogix.com:443"
+        private_key: "${CORALOGIX_PRIVATE_KEY}" 
+        application_name: "otel-coralogix"
+        subsystem_name: "otel"
+        application_name_attributes:
+          - "service.namespace"
+          - "k8s.namespace.name" 
+        subsystem_name_attributes:
+          - "service.name"
+          - "k8s.deployment.name"
+          - "k8s.statefulset.name"
+          - "k8s.daemonset.name"
+          - "k8s.cronjob.name"
+          - "k8s.job.name"
+          - "k8s.container.name"
+        timeout: 30s
+    service:
+      pipelines:
+        logs:
+          receivers: [otlp]
+          processors: []
+          exporters: [coralogix]
+        metrics:
+          receivers: [otlp]
+          processors: []
+          exporters: [coralogix]
+        traces:
+          receivers: [otlp]
+          processors: [k8sattributes, spanmetrics]
+          exporters: [coralogix]
+      telemetry:
+        metrics:
+          address: ${MY_POD_IP}:8888
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otelcollector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: otelcollector
+  template:
+    metadata:
+      labels:
+        app: otelcollector
+    spec:
+      serviceAccountName: collector
+      containers:
+      - name: otelcollector
+        args:
+        - --config=/conf/collector.yaml
+        image: otel/opentelemetry-collector-contrib:0.70.0
+        env:
+          - name: CORALOGIX_PRIVATE_KEY
+            valueFrom:
+              secretKeyRef:
+                name: coralogix-keys
+                key: PRIVATE_KEY
+          - name: KUBE_NODE_NAME
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: spec.nodeName
+          - name: MY_POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+        ports:
+        - containerPort: 4317
+        - containerPort: 4318
+        readinessProbe:
+          tcpSocket:
+            port: 4318
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: 4318
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        resources:
+          requests:
+            cpu: 200m
+            memory: 180Mi
+          limits:
+            cpu: 300m
+            memory: 300M
+        volumeMounts:
+        - mountPath: /conf
+          name: collector-config
+      volumes:
+      - configMap:
+          items:
+          - key: collector.yaml
+            path: collector.yaml
+          name: collector-config
+        name: collector-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-external
+spec:
+  type: LoadBalancer
+  selector:
+    app: otelcollector
+  ports:
+  - name: https
+    port: 443
+    targetPort: 4318
+  - name: http
+    port: 80
+    targetPort: 4318
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: collector
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: otelcollector
+rules:
+- apiGroups: [""]
+  resources: ["pods", "namespaces"]
+  verbs: ["get", "watch", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: otelcollector
+subjects:
+- kind: ServiceAccount
+  name: collector
+  namespace: default
+roleRef:
+  kind: ClusterRole
+  name: otelcollector
+  apiGroup: rbac.authorization.k8s.io

@@ -16,11 +16,18 @@ package main
 
 import (
 	"context"
+	"math/rand"
 	"net/http"
 	"time"
 
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	//"github.com/uptrace/opentelemetry-go-extra/otellogrus"
+	// "go.opentelemetry.io/otel"
+	// "go.opentelemetry.io/otel/trace"
+	// "go.opentelemetry.io/otel/attribute"
 )
 
 type ctxKeyLog struct{}
@@ -58,27 +65,48 @@ func (lh *logHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	requestID, _ := uuid.NewRandom()
 	ctx = context.WithValue(ctx, ctxKeyRequestID{}, requestID.String())
 
+	spanContext := trace.SpanContextFromContext(r.Context())
 	start := time.Now()
 	rr := &responseRecorder{w: w}
 	log := lh.log.WithFields(logrus.Fields{
-		"http.req.path":   r.URL.Path,
-		"http.req.method": r.Method,
-		"http.req.id":     requestID.String(),
-	})
+		"http_req_path":   r.URL.Path,
+		"http_req_method": r.Method,
+		"http_req_id":     requestID.String(),
+		"http_req_ip":     readUserIP(r),
+		"trace_id":        spanContext.TraceID(),
+		"span_id":         spanContext.SpanID()})
+
 	if v, ok := r.Context().Value(ctxKeySessionID{}).(string); ok {
 		log = log.WithField("session", v)
 	}
-	log.Debug("request started")
+
+	log.Debugf("request %s %s started. requestID: %s", r.Method, r.URL.Path, requestID.String())
 	defer func() {
-		log.WithFields(logrus.Fields{
-			"http.resp.took_ms": int64(time.Since(start) / time.Millisecond),
-			"http.resp.status":  rr.status,
-			"http.resp.bytes":   rr.b}).Debugf("request complete")
+		log = log.WithFields(logrus.Fields{
+			"http_resp_took_ms": int64(time.Since(start) / time.Millisecond),
+			"http_resp_status":  rr.status,
+			"http_resp_bytes":   rr.b})
+
+		if rr.status < 400 {
+			log.Debugf("request %s %s completed with status: %d. requestID: %s", r.Method, r.URL.Path, rr.status, requestID.String())
+		} else {
+			log.Errorf("request %s %s failed with status: %d. requestID: %s", r.Method, r.URL.Path, rr.status, requestID.String())
+		}
 	}()
 
 	ctx = context.WithValue(ctx, ctxKeyLog{}, log)
 	r = r.WithContext(ctx)
+
 	lh.next.ServeHTTP(rr, r)
+}
+
+func readUserIP(r *http.Request) string {
+	ips := []string{"192.63.196.161", "172.217.18.110", "52.220.125.74", "151.101.194.28", "13.114.171.8", "34.206.39.153", "23.210.254.113",
+		"151.101.129.111", "142.250.185.67", "151.101.64.144", "158.46.145.28", "75.126.123.197", "71.211.166.198", "161.123.212.18", "68.198.186.48",
+		"68.198.186.40", "207.99.53.147", "91.214.87.74", "193.62.157.66", "5.157.21.190", "101.110.63.255", "52.219.8.20", "154.5.171.114",
+		"192.206.151.131", "46.14.53.1", "157.131.72.157", "147.237.70.107", "161.226.217.83", "23.81.93.62", "66.253.160.0", "220.41.101.217"}
+
+	return ips[rand.Intn(len(ips))]
 }
 
 func ensureSessionID(next http.Handler) http.HandlerFunc {

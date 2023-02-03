@@ -15,7 +15,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -28,21 +27,26 @@ import (
 	"syscall"
 	"time"
 
-	pb "github.com/GoogleCloudPlatform/microservices-demo/src/productcatalogservice/genproto"
+	pb "github.com/GoogleCloudPlatform/microservices-demo/src/productcatalogservice/genproto/hipstershop"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 
-	"cloud.google.com/go/profiler"
-	"contrib.go.opencensus.io/exporter/jaeger"
-	"contrib.go.opencensus.io/exporter/stackdriver"
-	"github.com/golang/protobuf/jsonpb"
 	"github.com/sirupsen/logrus"
-	//  "go.opencensus.io/exporter/jaeger"
-	"go.opencensus.io/plugin/ocgrpc"
-	"go.opencensus.io/stats/view"
-	"go.opencensus.io/trace"
+
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/propagation"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+
+	"google.golang.org/protobuf/encoding/protojson"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"math/rand"
+	wr "github.com/mroth/weightedrand"
 )
 
 var (
@@ -54,6 +58,8 @@ var (
 	port = "3550"
 
 	reloadCatalog bool
+
+	chooser 	  *wr.Chooser
 )
 
 func init() {
@@ -67,27 +73,49 @@ func init() {
 		TimestampFormat: time.RFC3339Nano,
 	}
 	log.Out = os.Stdout
+	log.SetReportCaller(true)
+
 	catalogMutex = &sync.Mutex{}
 	err := readCatalogFile(&cat)
 	if err != nil {
 		log.Warnf("could not parse product catalog")
 	}
+
+	rand.Seed(time.Now().UTC().UnixNano())
+
+	chooser, _ = wr.NewChooser(
+        wr.Choice{Item: 0, Weight: 30},
+		wr.Choice{Item: 100, Weight: 6},
+        wr.Choice{Item: 200, Weight: 4},
+        wr.Choice{Item: 300, Weight: 1},
+        wr.Choice{Item: 400, Weight: 1},
+        wr.Choice{Item: 600, Weight: 1},
+    )
+}
+
+func InitTracerProvider() *sdktrace.TracerProvider {
+	ctx := context.Background()
+
+	exporter, err := otlptracegrpc.New(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithSampler(sdktrace.AlwaysSample()),
+		sdktrace.WithBatcher(exporter),
+	)
+	otel.SetTracerProvider(tp)
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
+	return tp
 }
 
 func main() {
-	if os.Getenv("DISABLE_TRACING") == "" {
-		log.Info("Tracing enabled.")
-		go initTracing()
-	} else {
-		log.Info("Tracing disabled.")
-	}
-
-	if os.Getenv("DISABLE_PROFILER") == "" {
-		log.Info("Profiling enabled.")
-		go initProfiling("productcatalogservice", "1.0.0")
-	} else {
-		log.Info("Profiling disabled.")
-	}
+	tp := InitTracerProvider()
+	defer func() {
+		if err := tp.Shutdown(context.Background()); err != nil {
+			log.Printf("Error shutting down tracer provider: %v", err)
+		}
+	}()
 
 	flag.Parse()
 
@@ -132,14 +160,10 @@ func run(port string) string {
 	if err != nil {
 		log.Fatal(err)
 	}
-	var srv *grpc.Server
-	if os.Getenv("DISABLE_STATS") == "" {
-		log.Info("Stats enabled.")
-		srv = grpc.NewServer(grpc.StatsHandler(&ocgrpc.ServerHandler{}))
-	} else {
-		log.Info("Stats disabled.")
-		srv = grpc.NewServer()
-	}
+	var srv *grpc.Server = grpc.NewServer(
+		grpc.UnaryInterceptor(otelgrpc.UnaryServerInterceptor()),
+		grpc.StreamInterceptor(otelgrpc.StreamServerInterceptor()),
+	)
 
 	svc := &productCatalog{}
 
@@ -149,88 +173,9 @@ func run(port string) string {
 	return l.Addr().String()
 }
 
-func initJaegerTracing() {
-	svcAddr := os.Getenv("JAEGER_SERVICE_ADDR")
-	if svcAddr == "" {
-		log.Info("jaeger initialization disabled.")
-		return
-	}
-	// Register the Jaeger exporter to be able to retrieve
-	// the collected spans.
-	exporter, err := jaeger.NewExporter(jaeger.Options{
-		Endpoint: fmt.Sprintf("http://%s", svcAddr),
-		Process: jaeger.Process{
-			ServiceName: "productcatalogservice",
-		},
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-	trace.RegisterExporter(exporter)
-	log.Info("jaeger initialization completed.")
+type productCatalog struct {
+	pb.UnimplementedProductCatalogServiceServer
 }
-
-func initStats(exporter *stackdriver.Exporter) {
-	view.SetReportingPeriod(60 * time.Second)
-	view.RegisterExporter(exporter)
-	if err := view.Register(ocgrpc.DefaultServerViews...); err != nil {
-		log.Info("Error registering default server views")
-	} else {
-		log.Info("Registered default server views")
-	}
-}
-
-func initStackdriverTracing() {
-	// TODO(ahmetb) this method is duplicated in other microservices using Go
-	// since they are not sharing packages.
-	for i := 1; i <= 3; i++ {
-		exporter, err := stackdriver.NewExporter(stackdriver.Options{})
-		if err != nil {
-			log.Warnf("failed to initialize Stackdriver exporter: %+v", err)
-		} else {
-			trace.RegisterExporter(exporter)
-			trace.ApplyConfig(trace.Config{DefaultSampler: trace.AlwaysSample()})
-			log.Info("registered Stackdriver tracing")
-
-			// Register the views to collect server stats.
-			initStats(exporter)
-			return
-		}
-		d := time.Second * 10 * time.Duration(i)
-		log.Infof("sleeping %v to retry initializing Stackdriver exporter", d)
-		time.Sleep(d)
-	}
-	log.Warn("could not initialize Stackdriver exporter after retrying, giving up")
-}
-
-func initTracing() {
-	initJaegerTracing()
-	initStackdriverTracing()
-}
-
-func initProfiling(service, version string) {
-	// TODO(ahmetb) this method is duplicated in other microservices using Go
-	// since they are not sharing packages.
-	for i := 1; i <= 3; i++ {
-		if err := profiler.Start(profiler.Config{
-			Service:        service,
-			ServiceVersion: version,
-			// ProjectID must be set if not running on GCP.
-			// ProjectID: "my-project",
-		}); err != nil {
-			log.Warnf("failed to start profiler: %+v", err)
-		} else {
-			log.Info("started Stackdriver profiler")
-			return
-		}
-		d := time.Second * 10 * time.Duration(i)
-		log.Infof("sleeping %v to retry initializing Stackdriver profiler", d)
-		time.Sleep(d)
-	}
-	log.Warn("could not initialize Stackdriver profiler after retrying, giving up")
-}
-
-type productCatalog struct{}
 
 func readCatalogFile(catalog *pb.ListProductsResponse) error {
 	catalogMutex.Lock()
@@ -240,7 +185,7 @@ func readCatalogFile(catalog *pb.ListProductsResponse) error {
 		log.Fatalf("failed to open product catalog json file: %v", err)
 		return err
 	}
-	if err := jsonpb.Unmarshal(bytes.NewReader(catalogJSON), catalog); err != nil {
+	if err := protojson.Unmarshal(catalogJSON, catalog); err != nil {
 		log.Warnf("failed to parse the catalog JSON: %v", err)
 		return err
 	}
@@ -258,6 +203,14 @@ func parseCatalog() []*pb.Product {
 	return cat.Products
 }
 
+func handleLatency() {
+	time.Sleep(extraLatency)
+
+	more := chooser.Pick().(int) + rand.Intn(99)
+	
+	time.Sleep(time.Duration(more))
+}
+
 func (p *productCatalog) Check(ctx context.Context, req *healthpb.HealthCheckRequest) (*healthpb.HealthCheckResponse, error) {
 	return &healthpb.HealthCheckResponse{Status: healthpb.HealthCheckResponse_SERVING}, nil
 }
@@ -272,7 +225,7 @@ func (p *productCatalog) ListProducts(context.Context, *pb.Empty) (*pb.ListProdu
 }
 
 func (p *productCatalog) GetProduct(ctx context.Context, req *pb.GetProductRequest) (*pb.Product, error) {
-	time.Sleep(extraLatency)
+	handleLatency()
 	var found *pb.Product
 	for i := 0; i < len(parseCatalog()); i++ {
 		if req.Id == parseCatalog()[i].Id {
@@ -297,3 +250,4 @@ func (p *productCatalog) SearchProducts(ctx context.Context, req *pb.SearchProdu
 	}
 	return &pb.SearchProductsResponse{Results: ps}, nil
 }
+
