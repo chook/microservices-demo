@@ -22,6 +22,9 @@ spec:
       app: redis-cart
   template:
     metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9121"
       labels:
         app: redis-cart
     spec:
@@ -48,6 +51,14 @@ spec:
           requests:
             cpu: 70m
             memory: 200Mi
+      - name: redis-exporter
+        image: oliver006/redis_exporter:latest
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        ports:
+        - containerPort: 9121
       volumes:
       - name: redis-data
         emptyDir: {}
