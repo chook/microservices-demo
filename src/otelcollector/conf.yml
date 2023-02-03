@@ -24,11 +24,11 @@ exporters:
   coralogix:
     # The Coralogix traces ingress endpoint
     traces:
-      endpoint: "otel-traces.coralogix.us:443"
+      endpoint: "otel-traces.coralogix.com:443"
     metrics:
-      endpoint: "otel-metrics.coralogix.us:443"
+      endpoint: "otel-metrics.coralogix.com:443"
     logs:
-      endpoint: "otel-logs.coralogix.us:443"
+      endpoint: "otel-logs.coralogix.com:443"
 
     # Your Coralogix private key is sensitive
     private_key: "$CORALOGIX_PRIVATE_KEY"
