@@ -52,9 +52,10 @@ class HipsterShopServer {
 
       logger.info(`PaymentService#Charge invoked with request ${JSON.stringify(call.request)}`);
       const response = charge(call.request);
+      
       callback(null, response);
     } catch (err) {
-      console.warn(err);
+      logger.error(`charge failed with error: ${err}`);
       callback(err);
     }
   }
