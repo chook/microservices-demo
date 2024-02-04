@@ -27,8 +27,9 @@ from opentelemetry.sdk.trace.export import (BatchSpanProcessor)
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
 from opentelemetry.instrumentation.urllib3 import URLLib3Instrumentor
+from coralogix_opentelemetry.trace.samplers import CoralogixTransactionSampler
 
-tracer_provider = TracerProvider()
+tracer_provider = TracerProvider(sampler=CoralogixTransactionSampler())
 trace.set_tracer_provider(tracer_provider)
 tracer_provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
 

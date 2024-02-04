@@ -6,6 +6,7 @@ opentelemetry-exporter-otlp-proto-grpc==1.9.0
 opentelemetry-instrumentation==0.28b0
 opentelemetry-instrumentation-grpc==0.28b0
 opentelemetry-instrumentation-urllib3==0.28b0
+coralogix-opentelemetry==0.1.0
 #follow https://github.com/open-telemetry/opentelemetry-python-contrib/issues/810
 #opentelemetry-instrumentation-logging==0.28b0
 opentelemetry-sdk==1.9.0

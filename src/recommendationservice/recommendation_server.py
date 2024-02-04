@@ -30,11 +30,12 @@ from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import (BatchSpanProcessor)
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from coralogix_opentelemetry.trace.samplers import CoralogixTransactionSampler
 
 from logger import getJSONLogger
 logger = getJSONLogger('recommendationservice-server')
 
-tracer_provider = TracerProvider()
+tracer_provider = TracerProvider(sampler=CoralogixTransactionSampler())
 trace.set_tracer_provider(tracer_provider)
 tracer_provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
 

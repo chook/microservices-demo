@@ -2,13 +2,14 @@
   "name": "grpc-currency-service",
   "version": "0.1.0",
   "description": "A gRPC currency conversion microservice",
-  "repository": "https://github.com/GoogleCloudPlatform/microservices-demo",
+  "repository": "https://github.com/chook/microservices-demo",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "semistandard *.js"
   },
   "license": "Apache-2.0",
   "dependencies": {
+    "@coralogix/opentelemetry": "^0.1.2",
     "@grpc/grpc-js": "^1.5.3",
     "@grpc/proto-loader": "^0.6.9",
     "@opentelemetry/auto-instrumentations-node": "^0.27.2",
