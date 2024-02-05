@@ -14,8 +14,6 @@
 
 FROM python:3.12.1-slim@sha256:db7e9284d53f7b827c58a6239b9d2907c33250215823b1cdb7d1e983e70dafa5 as base
 
-FROM base as builder
-
 RUN apt-get -qq update \
     && apt-get install -y --no-install-recommends \
         wget g++ \
@@ -25,7 +23,6 @@ RUN apt-get -qq update \
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-FROM base
 # Enable unbuffered logging
 ENV PYTHONUNBUFFERED=1
 # Enable Profiler
@@ -33,13 +30,8 @@ ENV ENABLE_PROFILER=1
 
 WORKDIR /email_server
 
-# Grab packages from builder
-COPY --from=builder /usr/local/lib/python3.12/ /usr/local/lib/python3.12/
-
 # Add the application
 COPY . .
-
-RUN opentelemetry-bootstrap -a install
 
 EXPOSE 8080
 ENTRYPOINT [ "opentelemetry-instrument", "python", "email_server.py" ]
