@@ -27,25 +27,25 @@ import (
 	"syscall"
 	"time"
 
-	pb "github.com/GoogleCloudPlatform/microservices-demo/src/productcatalogservice/genproto/hipstershop"
+	pb "github.com/chook/microservices-demo/src/productcatalogservice/genproto/hipstershop"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 
 	"github.com/sirupsen/logrus"
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 
+	"math/rand"
+
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
+	sampler "github.com/coralogix/coralogix-opentelemetry-go/sampler"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-
-	"google.golang.org/protobuf/encoding/protojson"
-
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protojson"
 
-	"math/rand"
 	wr "github.com/mroth/weightedrand"
 )
 
@@ -59,7 +59,7 @@ var (
 
 	reloadCatalog bool
 
-	chooser 	  *wr.Chooser
+	chooser *wr.Chooser
 )
 
 func init() {
@@ -84,13 +84,13 @@ func init() {
 	rand.Seed(time.Now().UTC().UnixNano())
 
 	chooser, _ = wr.NewChooser(
-        wr.Choice{Item: 0, Weight: 30},
+		wr.Choice{Item: 0, Weight: 30},
 		wr.Choice{Item: 100, Weight: 6},
-        wr.Choice{Item: 200, Weight: 4},
-        wr.Choice{Item: 300, Weight: 1},
-        wr.Choice{Item: 400, Weight: 1},
-        wr.Choice{Item: 600, Weight: 1},
-    )
+		wr.Choice{Item: 200, Weight: 4},
+		wr.Choice{Item: 300, Weight: 1},
+		wr.Choice{Item: 400, Weight: 1},
+		wr.Choice{Item: 600, Weight: 1},
+	)
 }
 
 func InitTracerProvider() *sdktrace.TracerProvider {
@@ -101,7 +101,7 @@ func InitTracerProvider() *sdktrace.TracerProvider {
 		log.Fatal(err)
 	}
 	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithSampler(sdktrace.AlwaysSample()),
+		sdktrace.WithSampler(sampler.NewCoralogixSampler(sdktrace.AlwaysSample())),
 		sdktrace.WithBatcher(exporter),
 	)
 	otel.SetTracerProvider(tp)
@@ -207,7 +207,7 @@ func handleLatency() {
 	time.Sleep(extraLatency)
 
 	more := chooser.Pick().(int) + rand.Intn(99)
-	
+
 	time.Sleep(time.Duration(more))
 }
 
@@ -250,4 +250,3 @@ func (p *productCatalog) SearchProducts(ctx context.Context, req *pb.SearchProdu
 	}
 	return &pb.SearchProductsResponse{Results: ps}, nil
 }
-

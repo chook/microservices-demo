@@ -28,6 +28,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 
+	sampler "github.com/coralogix/coralogix-opentelemetry-go/sampler"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -35,8 +36,8 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
 
-	pb "github.com/GoogleCloudPlatform/microservices-demo/src/checkoutservice/genproto/hipstershop"
-	money "github.com/GoogleCloudPlatform/microservices-demo/src/checkoutservice/money"
+	pb "github.com/chook/microservices-demo/src/checkoutservice/genproto/hipstershop"
+	money "github.com/chook/microservices-demo/src/checkoutservice/money"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
@@ -69,7 +70,7 @@ func InitTracerProvider() *sdktrace.TracerProvider {
 		log.Fatal(err)
 	}
 	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithSampler(sdktrace.AlwaysSample()),
+		sdktrace.WithSampler(sampler.NewCoralogixSampler(sdktrace.AlwaysSample())),
 		sdktrace.WithBatcher(exporter),
 	)
 	otel.SetTracerProvider(tp)
@@ -144,10 +145,10 @@ func (cs *checkoutService) Watch(req *healthpb.HealthCheckRequest, ws healthpb.H
 
 func (cs *checkoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb.PlaceOrderResponse, error) {
 	spanContext := trace.SpanContextFromContext(ctx)
-	
+
 	log := log.WithFields(logrus.Fields{
 		"trace_id": spanContext.TraceID(),
-		"span_id": spanContext.SpanID()})
+		"span_id":  spanContext.SpanID()})
 
 	log.Infof("[PlaceOrder] user_id=%s user_currency=%s", req.UserId, req.UserCurrency)
 
@@ -155,7 +156,7 @@ func (cs *checkoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderReq
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to generate order uuid")
 	}
-	
+
 	log.Debugf("[PlaceOrder] generated new orderID: %s", orderID)
 
 	prep, err := cs.prepareOrderItemsAndShippingQuoteFromCart(ctx, req.UserId, req.UserCurrency, req.Address)
@@ -186,7 +187,7 @@ func (cs *checkoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderReq
 	if err != nil {
 		return nil, status.Errorf(codes.Unavailable, "shipping error: %+v", err)
 	}
-	
+
 	log.Infof("[PlaceOrder] new trackingID: %v shipping to %v for generated items %v", shippingTrackingID, req.Address.State, prep.cartItems)
 
 	_ = cs.emptyUserCart(ctx, req.UserId)

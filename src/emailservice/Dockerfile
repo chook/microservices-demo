@@ -12,7 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM python:3.10-slim
+FROM python:3.12.1-slim@sha256:db7e9284d53f7b827c58a6239b9d2907c33250215823b1cdb7d1e983e70dafa5 as base
+
+RUN apt-get -qq update \
+    && apt-get install -y --no-install-recommends \
+        wget g++ \
+    && rm -rf /var/lib/apt/lists/*
 
 # get packages
 COPY requirements.txt .
@@ -20,15 +25,8 @@ RUN pip install -r requirements.txt
 
 # Enable unbuffered logging
 ENV PYTHONUNBUFFERED=1
-
-RUN apt-get -qq update \
-    && apt-get install -y --no-install-recommends \
-    wget
-
-# Download the grpc health probe
-RUN GRPC_HEALTH_PROBE_VERSION=v0.4.6 && \
-    wget -qO/bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64 && \
-    chmod +x /bin/grpc_health_probe
+# Enable Profiler
+ENV ENABLE_PROFILER=1
 
 WORKDIR /email_server
 

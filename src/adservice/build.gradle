@@ -95,7 +95,8 @@ task adService(type: CreateStartScripts) {
     outputDir = new File(project.buildDir, 'tmp')
     classpath = startScripts.classpath
     defaultJvmOpts =
-        ["-javaagent:/app/opentelemetry-javaagent.jar"]
+        [ '-javaagent:/app/opentelemetry-javaagent.jar', 
+          '—Dotel.javaagent.extensions=/app/opentelemetry-java-extensions-1.0-jar-with-dependencies.jar' ]
 }
 
 task adServiceClient(type: CreateStartScripts) {
@@ -104,7 +105,8 @@ task adServiceClient(type: CreateStartScripts) {
     outputDir = new File(project.buildDir, 'tmp')
     classpath = startScripts.classpath
     defaultJvmOpts =
-        ["-javaagent:/app/opentelemetry-javaagent.jar"]
+        [ '-javaagent:/app/opentelemetry-javaagent.jar', 
+          '—Dotel.javaagent.extensions=/app/opentelemetry-java-extensions-1.0-jar-with-dependencies.jar' ]
 }
 
 applicationDistribution.into('bin') {
