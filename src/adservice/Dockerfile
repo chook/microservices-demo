@@ -37,6 +37,8 @@ RUN mkdir -p /opt/cprof && \
 
 WORKDIR /app
 COPY --from=builder /app .
+COPY --from=builder /app/opentelemetry-javaagent.jar .
+COPY --from=builder /app/opentelemetry-java-extensions-1.0-jar-with-dependencies.jar .
 
 EXPOSE 9555
 ENTRYPOINT ["/app/build/install/hipstershop/bin/AdService"]
