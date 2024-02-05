@@ -16,23 +16,25 @@ FROM python:3.12.1-slim@sha256:db7e9284d53f7b827c58a6239b9d2907c33250215823b1cdb
 
 FROM base as builder
 
+RUN apt-get -qq update \
+    && apt-get install -y --no-install-recommends \
+        wget g++ \
+    && rm -rf /var/lib/apt/lists/*
+
 # get packages
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
+FROM base
 # Enable unbuffered logging
 ENV PYTHONUNBUFFERED=1
-
-RUN apt-get -qq update \
-    && apt-get install -y --no-install-recommends \
-    wget
-
-# Download the grpc health probe
-RUN GRPC_HEALTH_PROBE_VERSION=v0.4.6 && \
-    wget -qO/bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64 && \
-    chmod +x /bin/grpc_health_probe
+# Enable Profiler
+ENV ENABLE_PROFILER=1
 
 WORKDIR /email_server
+
+# Grab packages from builder
+COPY --from=builder /usr/local/lib/python3.12/ /usr/local/lib/python3.12/
 
 # Add the application
 COPY . .
